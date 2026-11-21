@@ -46,13 +46,16 @@ final class MDS_Woo_Admin_Scripts {
 	 */
 	private static function enqueue_network_settings_script() {
 		$network_settings_handle = 'mds-woo-network-settings';
-		wp_enqueue_script(
+		$script_path             = MDS_WOO_PATH . 'js/network-settings.js';
+
+		wp_register_script(
 			$network_settings_handle,
 			MDS_WOO_URL . 'js/network-settings.js',
 			array( 'jquery' ),
-			filemtime( MDS_WOO_PATH . 'js/network-settings.js' ),
+			filemtime( $script_path ),
 			true
 		);
+		wp_enqueue_script( $network_settings_handle );
 		wp_localize_script(
 			$network_settings_handle,
 			'mdsWooNetworkSettings',
@@ -72,13 +75,26 @@ final class MDS_Woo_Admin_Scripts {
 	 */
 	private static function enqueue_product_linker_script() {
 		$product_linker_handle = 'mds-woo-product-linker';
-		wp_enqueue_script(
+		$script_path           = MDS_WOO_PATH . 'js/product-linker.js';
+		if ( wp_script_is( 'selectWoo', 'registered' ) ) {
+			$select_handle = 'selectWoo';
+		} elseif ( wp_script_is( 'select2', 'registered' ) ) {
+			$select_handle = 'select2';
+		} else {
+			$select_handle = 'mds-select2';
+			wp_register_script( $select_handle, 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js', array( 'jquery' ), '4.0.13', true );
+			wp_register_style( 'mds-select2-css', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css', array(), '4.0.13' );
+			wp_enqueue_style( 'mds-select2-css' );
+		}
+
+		wp_register_script(
 			$product_linker_handle,
 			MDS_WOO_URL . 'js/product-linker.js',
-			array( 'jquery' ),
-			filemtime( MDS_WOO_PATH . 'js/product-linker.js' ),
+			array( 'jquery', $select_handle ),
+			filemtime( $script_path ),
 			true
 		);
+		wp_enqueue_script( $product_linker_handle );
 		wp_localize_script(
 			$product_linker_handle,
 			'mdsWooProductLinker',
@@ -99,11 +115,14 @@ final class MDS_Woo_Admin_Scripts {
 	 * Enqueue admin styles for the release linker and network settings.
 	 */
 	private static function enqueue_admin_styles() {
-		wp_enqueue_style(
+		$style_path = MDS_WOO_PATH . 'css/admin.css';
+
+		wp_register_style(
 			'mds-woo-admin',
 			MDS_WOO_URL . 'css/admin.css',
 			array(),
-			filemtime( MDS_WOO_PATH . 'css/admin.css' )
+			filemtime( $style_path )
 		);
+		wp_enqueue_style( 'mds-woo-admin' );
 	}
 }

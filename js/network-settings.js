@@ -9,7 +9,11 @@
 
 	$(
 		function () {
-			$( '#mds-network-settings-form' ).on(
+			var $form = $( '#mds-woo-network-settings-form' );
+			if ( ! $form.length ) {
+				$form = $( '#mds-network-settings-form' );
+			}
+			$form.on(
 				'submit',
 				function (event) {
 					event.preventDefault();

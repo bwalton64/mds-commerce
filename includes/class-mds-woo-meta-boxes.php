@@ -51,115 +51,46 @@ final class MdsWooMetaBoxes
                 array('MdsWooRestApi', 'isIntegratedStore')
             )
         );
-        $site_markup = self::renderIntegratedSites($integrated_sites, $linked_products, $post);
-
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template renderer escapes tokens and sanitizes HTML fragments.
-        echo mds_woo_render_html_template(
-            'product-linker-wrapper.html',
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The template escapes dynamic values in their output contexts.
+        echo mds_woo_render_template(
+            'product-linker-wrapper.php',
             array(
-                'site_markup' => array(
-                    'value'   => $site_markup,
-                    'context' => 'html',
-                ),
+                'sites'   => self::getIntegratedSiteData($integrated_sites, $linked_products),
+                'post_id' => (int) $post->ID,
             )
         );
     }
 
     /**
-     * Render all configured store sections.
+     * Prepare data for each configured store section.
      *
      * @param array   $integrated_sites Integrated site IDs.
      * @param array   $linked_products Product IDs linked by store.
-     * @param \WP_Post $post Release post.
-     * @return string Store section markup.
+     * @return array Store data for the template.
      */
-    private static function renderIntegratedSites($integrated_sites, $linked_products, $post)
+    private static function getIntegratedSiteData($integrated_sites, $linked_products)
     {
-        if (empty($integrated_sites)) {
-            return mds_woo_render_html_template('product-linker-empty.html');
-        }
-
-        $markup = '';
+        $sites = array();
         foreach ($integrated_sites as $store_id) {
-            $markup .= self::renderStoreSection($store_id, $linked_products, $post);
+            $current_linked_id = isset($linked_products[$store_id])
+                ? absint($linked_products[$store_id])
+                : 0;
+            $product_details = $current_linked_id
+                ? self::getProductDetails($store_id, $current_linked_id)
+                : array(
+                    'title'     => '',
+                    'permalink' => '',
+                );
+
+            $sites[] = array(
+                'store_id'   => $store_id,
+                'product_id' => $current_linked_id,
+                'title'      => $product_details['title'],
+                'permalink'  => $product_details['permalink'],
+            );
         }
 
-        return $markup;
-    }
-
-    /**
-     * Render a single store section.
-     *
-     * @param int     $store_id Store site ID.
-     * @param array   $linked_products Product IDs linked by store.
-     * @param \WP_Post $post Release post.
-     * @return string Store section markup.
-     */
-    private static function renderStoreSection($store_id, $linked_products, $post)
-    {
-        $current_linked_id = isset($linked_products[$store_id]) ? $linked_products[$store_id] : '';
-        $product_option = self::renderProductOption($store_id, $current_linked_id);
-        $generate_button = self::renderGenerateButton($store_id, $current_linked_id, $post);
-
-        return mds_woo_render_html_template(
-            'product-linker-site.html',
-            array(
-                'store_id_attr' => array(
-                    'value'   => $store_id,
-                    'context' => 'attr',
-                ),
-                'store_id_text' => array(
-                    'value'   => $store_id,
-                    'context' => 'text',
-                ),
-                'release_id_attr' => array(
-                    'value'   => $post->ID,
-                    'context' => 'attr',
-                ),
-                'product_option' => array(
-                    'value'   => $product_option,
-                    'context' => 'html',
-                ),
-                'generate_button' => array(
-                    'value'   => $generate_button,
-                    'context' => 'html',
-                ),
-            )
-        );
-    }
-
-    /**
-     * Render the current product option or search prompt.
-     *
-     * @param int $store_id Store site ID.
-     * @param int|string $current_linked_id Linked product ID.
-     * @return string Product option markup.
-     */
-    private static function renderProductOption($store_id, $current_linked_id)
-    {
-        if (! $current_linked_id) {
-            return mds_woo_render_html_template('product-linker-search-option.html');
-        }
-
-        $product_details = self::getProductDetails($store_id, $current_linked_id);
-
-        return mds_woo_render_html_template(
-            'product-linker-selected-option.html',
-            array(
-                'product_id' => array(
-                    'value'   => $current_linked_id,
-                    'context' => 'attr',
-                ),
-                'permalink' => array(
-                    'value'   => $product_details['permalink'],
-                    'context' => 'url',
-                ),
-                'title'     => array(
-                    'value'   => $product_details['title'],
-                    'context' => 'text',
-                ),
-            )
-        );
+        return $sites;
     }
 
     /**
@@ -198,32 +129,4 @@ final class MdsWooMetaBoxes
         }
     }
 
-    /**
-     * Render the generate button when the store has no linked product.
-     *
-     * @param int     $store_id Store site ID.
-     * @param int|string $current_linked_id Linked product ID.
-     * @param \WP_Post $post Release post.
-     * @return string Button markup.
-     */
-    private static function renderGenerateButton($store_id, $current_linked_id, $post)
-    {
-        if ($current_linked_id) {
-            return '';
-        }
-
-        return mds_woo_render_html_template(
-            'product-linker-generate-button.html',
-            array(
-                'store_id' => array(
-                    'value'   => $store_id,
-                    'context' => 'attr',
-                ),
-                'post_id' => array(
-                    'value'   => $post->ID,
-                    'context' => 'attr',
-                ),
-            )
-        );
-    }
 }
