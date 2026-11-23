@@ -2,11 +2,12 @@
 /**
  * Empty WooCommerce product linker state.
  *
- * @package MDS_WooCommerce_Integration
+ * @package MDS\WooCommerce
+ * @since   1.0.1
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 ?>
-<p class="mds-woo-no-integrated-sites">No WooCommerce Integrated Sites configured in Network Settings.</p>
+<p class="mds-wc-no-integrated-sites"><?php esc_html_e( 'No WooCommerce Integrated Sites configured in Network Settings.', 'mds-woocommerce-integration' ); ?></p>

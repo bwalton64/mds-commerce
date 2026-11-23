@@ -1,0 +1,369 @@
+/* Network Settings */
+.mds-wc-integrated-site-checkbox {
+	display: block;
+	margin-bottom: 6px;
+}
+
+.mds-wc-network-settings {
+	margin-bottom: 20px;
+}
+
+.mds-wc-no-integrated-sites {
+	color: #d63638;
+}
+
+.mds-wc-draft-notice {
+	margin: 8px 0;
+	padding: 10px 12px;
+	background: #f6f7f7;
+	border-left: 4px solid #72aee6;
+}
+
+/* Store Cards Grid */
+.mds-wc-store-cards {
+	display: grid;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.mds-wc-store-card {
+	padding: 14px 16px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.mds-wc-store-card__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.mds-wc-store-card__title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.mds-wc-store-card__url {
+	display: block;
+	font-size: 12px;
+	color: #646970;
+	margin-top: 2px;
+}
+
+/* Status Badges */
+.mds-wc-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.mds-wc-badge--linked,
+.mds-wc-badge--publish {
+	background: #edfaef;
+	color: #005c12;
+}
+
+.mds-wc-badge--unlinked {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+.mds-wc-badge--draft {
+	background: #fcf9e8;
+	color: #705000;
+}
+
+/* Linked Product Summary */
+.mds-wc-product-summary {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.mds-wc-product-summary__thumb {
+	width: 48px;
+	height: 48px;
+	flex: 0 0 48px;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	background: #f6f7f7;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: #8c8f94;
+}
+
+.mds-wc-product-summary__thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.mds-wc-product-summary__title {
+	display: block;
+	font-size: 14px;
+	color: #1d2327;
+	margin-bottom: 4px;
+}
+
+.mds-wc-product-summary__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	color: #50575e;
+}
+
+.mds-wc-store-card__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.mds-wc-store-card__actions .dashicons {
+	font-size: 15px;
+	width: 15px;
+	height: 15px;
+	vertical-align: text-bottom;
+	margin-left: 2px;
+}
+
+/* Accessible Search Combobox */
+.mds-wc-linker-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.mds-wc-combobox__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.mds-wc-combobox__input-wrap {
+	position: relative;
+	flex: 1 1 260px;
+}
+
+.mds-wc-combobox__input {
+	width: 100%;
+}
+
+.mds-wc-combobox__listbox {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 50;
+	margin: 2px 0 0;
+	padding: 4px 0;
+	list-style: none;
+	background: #fff;
+	border: 1px solid #8c8f94;
+	border-radius: 3px;
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+	max-height: 220px;
+	overflow-y: auto;
+}
+
+.mds-wc-combobox__option {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 10px;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.mds-wc-combobox__option.is-active,
+.mds-wc-combobox__option:hover {
+	background: #2271b1;
+	color: #fff;
+}
+
+.mds-wc-combobox__option-meta {
+	font-size: 12px;
+	opacity: 0.8;
+	white-space: nowrap;
+}
+
+.mds-wc-combobox__status {
+	padding: 8px 10px;
+	font-size: 12px;
+	color: #646970;
+}
+
+/* Native Create Product Modal Dialog */
+.mds-wc-modal {
+	padding: 0;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	width: min(820px, calc(100vw - 32px));
+	max-height: calc(100vh - 48px);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.mds-wc-modal::backdrop {
+	background: rgba(29, 35, 39, 0.55);
+}
+
+.mds-wc-modal__dialog {
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 48px);
+}
+
+.mds-wc-modal__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 20px;
+	border-bottom: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.mds-wc-modal__title {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.4;
+}
+
+.mds-wc-modal__subtitle {
+	margin: 2px 0 0;
+	font-size: 12px;
+	color: #646970;
+}
+
+.mds-wc-modal__close {
+	background: transparent;
+	border: 0;
+	padding: 4px;
+	cursor: pointer;
+	color: #50575e;
+	border-radius: 3px;
+}
+
+.mds-wc-modal__close:hover,
+.mds-wc-modal__close:focus-visible {
+	color: #1d2327;
+	outline: 2px solid #2271b1;
+	outline-offset: 1px;
+}
+
+.mds-wc-modal__notice {
+	padding: 0 20px;
+}
+
+.mds-wc-modal__body {
+	padding: 16px 20px;
+	overflow-y: auto;
+	background: #f6f7f7;
+}
+
+.mds-wc-modal__grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+}
+
+@media (min-width: 782px) {
+	.mds-wc-modal__grid {
+		grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+	}
+}
+
+.mds-wc-field {
+	margin-bottom: 14px;
+}
+
+.mds-wc-field__label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 5px;
+	color: #1d2327;
+}
+
+.mds-wc-field-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+.mds-wc-categories-fieldset {
+	border: 0;
+	margin: 0 0 14px;
+	padding: 0;
+}
+
+.mds-wc-categories-list {
+	max-height: 140px;
+	overflow-y: auto;
+	padding: 8px 10px;
+	background: #fff;
+	border: 1px solid #8c8f94;
+	border-radius: 3px;
+}
+
+.mds-wc-category-item {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 13px;
+}
+
+.mds-wc-category-item.is-child {
+	padding-left: 16px;
+}
+
+.mds-wc-muted {
+	margin: 0;
+	font-size: 12px;
+	color: #646970;
+}
+
+.mds-wc-thumb-preview {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+}
+
+.mds-wc-thumb-preview img {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 2px;
+}
+
+.mds-wc-thumb-preview__toggle {
+	font-size: 12px;
+}
+
+.mds-wc-modal__footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 12px 20px;
+	border-top: 1px solid #dcdcde;
+	background: #fff;
+}

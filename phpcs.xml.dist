@@ -1,17 +1,19 @@
 <?xml version="1.0"?>
 <ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	name="{{PLUGIN_NAME}} Coding Standards"
+	name="MDS WooCommerce Integration Coding Standards"
 	xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
 
-	<description>WordPress Coding Standards (WPCS) with PHP 8.0 compatibility and Composer PSR-4 support.</description>
+	<description>WordPress Coding Standards (WPCS) with PHP 8.0 compatibility and Composer PSR-4 support for MDS WooCommerce Integration.</description>
 
 	<!-- Scan all PHP files in the repository -->
 	<file>.</file>
 
-	<!-- Exclude third-party dependencies, compiled assets, and generated manifests -->
+	<!-- Exclude dependencies, build output, generated manifests, agent docs, and standalone test stubs -->
 	<exclude-pattern>/vendor/*</exclude-pattern>
 	<exclude-pattern>/node_modules/*</exclude-pattern>
 	<exclude-pattern>/build/*</exclude-pattern>
+	<exclude-pattern>/.agents/*</exclude-pattern>
+	<exclude-pattern>/tests/*</exclude-pattern>
 	<exclude-pattern>*.asset.php</exclude-pattern>
 
 	<!-- CLI flags: show progress, sniff codes, and colors -->
@@ -32,30 +34,40 @@
 		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
 	</rule>
 
-	<!-- Still enforce WPCS lowercase hyphenated filenames outside src/ (root & procedural files) -->
+	<!-- Enforce WPCS lowercase hyphenated filenames outside src/ (root & procedural files) -->
 	<rule ref="WordPress.Files.FileName">
 		<exclude-pattern>/src/*</exclude-pattern>
 	</rule>
 
-	<!-- Enforce PHP 8.0+ compatibility via PHPCompatibilityWP (if installed via Composer) -->
+	<!-- Enforce PHP 8.0+ compatibility -->
 	<rule ref="PHPCompatibilityWP"/>
 
 	<!-- Enforce text domain consistency -->
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="{{TEXT_DOMAIN}}"/>
+				<element value="mds-woocommerce-integration"/>
 			</property>
 		</properties>
 	</rule>
 
-	<!-- Enforce global prefixing for functions, hooks, classes, and constants -->
+	<!-- Enforce global prefixing for functions, hooks, classes, constants, and namespaces -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="{{FUNC_PREFIX}}"/>
-				<element value="{{CLASS_PREFIX}}"/>
-				<element value="{{PHP_NAMESPACE}}"/>
+				<element value="mds_wc_"/>
+				<element value="MDS_WC_"/>
+				<element value="MDS\WooCommerce"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Recognize WooCommerce product capabilities -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="edit_products"/>
+				<element value="publish_products"/>
 			</property>
 		</properties>
 	</rule>

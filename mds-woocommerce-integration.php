@@ -1,32 +1,42 @@
 <?php
-
 /**
- * Plugin Name: MDS Release Manager WooCommerce Integration
+ * Plugin Name: MDS WooCommerce Integration
  * Description: Extends MDS Release Manager with Network WooCommerce syncing.
- * Version: 0.9.0
- * Requires PHP: 7.4
+ * Version: 1.0.1
+ * Requires at least: 7.0
+ * Requires PHP: 8.0
  * Author: Musty Dungeon Studios
+ * Text Domain: mds-woocommerce-integration
  *
- * @category Core
- * @package  MDS_WooCommerce_Integration
- * @author   Musty Dungeon Studios <mds@briangwalton.com>
- * @license  ©2026 Walton International Business Group LLC
- * @link     https://mustydungeon.com
+ * @package MDS\WooCommerce
+ * @since   1.0.1
  */
 
-defined('ABSPATH') || exit;
-define('MDS_WOO_VERSION', '0.9.0');
-define('MDS_WOO_PATH', plugin_dir_path(__FILE__));
-define('MDS_WOO_URL', plugin_dir_url(__FILE__));
-require_once MDS_WOO_PATH . 'includes/class-mds-woo-rest-api.php';
-require_once MDS_WOO_PATH . 'includes/class-mds-woo-admin-scripts.php';
-require_once MDS_WOO_PATH . 'includes/class-mds-woo-meta-boxes.php';
-require_once MDS_WOO_PATH . 'includes/class-mds-woo-save-handler.php';
-require_once MDS_WOO_PATH . 'includes/class-mds-woo-release-meta.php';
-require_once MDS_WOO_PATH . 'includes/helpers.php';
-require_once MDS_WOO_PATH . 'includes/admin-settings.php';
-require_once MDS_WOO_PATH . 'includes/rest-api.php';
-require_once MDS_WOO_PATH . 'includes/enqueue-scripts.php';
-require_once MDS_WOO_PATH . 'includes/meta-boxes.php';
-require_once MDS_WOO_PATH . 'includes/save-handlers.php';
-add_action( 'init', array( 'MDS_Woo_Release_Meta', 'register' ) );
+defined( 'ABSPATH' ) || exit;
+
+define( 'MDS_WC_VERSION', '1.0.1' );
+define( 'MDS_WC_FILE', __FILE__ );
+define( 'MDS_WC_PATH', plugin_dir_path( __FILE__ ) );
+define( 'MDS_WC_URL', plugin_dir_url( __FILE__ ) );
+
+$mds_wc_autoloader = MDS_WC_PATH . 'vendor/autoload.php';
+
+if ( file_exists( $mds_wc_autoloader ) ) {
+	require_once $mds_wc_autoloader;
+	require_once MDS_WC_PATH . 'includes/helpers.php';
+	add_action( 'plugins_loaded', array( \MDS\WooCommerce\Plugin::class, 'init' ) );
+} else {
+	add_action(
+		'admin_notices',
+		static function (): void {
+			if ( ! current_user_can( 'activate_plugins' ) ) {
+				return;
+			}
+
+			printf(
+				'<div class="notice notice-error"><p>%s</p></div>',
+				esc_html__( 'MDS WooCommerce Integration requires Composer dependencies. Run composer install in the plugin directory.', 'mds-woocommerce-integration' )
+			);
+		}
+	);
+}
