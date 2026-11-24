@@ -191,6 +191,13 @@ final class StoreRegistry {
 				self::$stores_cache = $cached;
 				return $cached;
 			}
+			// Stampede guard: avoid concurrent network-wide switch_to_blog() scans on cache miss.
+			if ( get_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock' ) ) {
+				return array();
+			}
+			if ( function_exists( 'set_site_transient' ) ) {
+				set_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock', '1', 30 );
+			}
 		}
 
 		$stores            = array();
@@ -243,6 +250,9 @@ final class StoreRegistry {
 
 		if ( function_exists( 'set_site_transient' ) ) {
 			set_site_transient( self::NETWORK_TRANSIENT_KEY, $stores, self::CACHE_TTL );
+		}
+		if ( function_exists( 'delete_site_transient' ) ) {
+			delete_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock' );
 		}
 
 		self::$stores_cache = $stores;

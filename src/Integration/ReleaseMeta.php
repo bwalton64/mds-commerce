@@ -124,6 +124,7 @@ final class ReleaseMeta {
 		}
 
 		add_filter( 'mds_rm_sync_target_sites', array( self::class, 'sync_targets' ), 10, 3 );
+		add_filter( 'mds_rm_spoke_protected_meta_keys', array( self::class, 'protect_spoke_meta_keys' ), 10, 2 );
 		add_action( 'mds_rm_after_shadow_sync', array( self::class, 'map_product' ), 10, 5 );
 		add_filter( 'mds_rm_release_meta_context_upc', array( self::class, 'context_upc' ), 10, 2 );
 		add_action( 'mds_rm_after_buy_now_field', array( self::class, 'buy_now_button' ) );
@@ -178,33 +179,48 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Merge per-Artist WooCommerce target stores into Release Manager sync targets.
+	 * Enforces Option B scoped WooCommerce store targeting for Hub-to-Spoke sync.
 	 *
-	 * Scopes Artist and Release broadcasts strictly to the WooCommerce store(s) assigned
-	 * on the Artist CPT (memoized per request inside StoreRegistry to avoid N+1 queries).
+	 * Non-WooCommerce spokes from Network Admin's `mds_rm_spoke_sites` are preserved,
+	 * while WooCommerce store sites are strictly opt-in per Artist (`_mds_wc_target_stores`)
+	 * so each store only receives Artists and Releases explicitly assigned to it.
 	 *
-	 * @since 1.0.1
+	 * @since 2.1.0
 	 *
-	 * @param mixed  $targets   Existing sync target site IDs.
+	 * @param mixed  $targets   Base sync target site IDs from Core.
 	 * @param int    $post_id   Hub post ID being synchronized.
 	 * @param string $post_type Post type (`artist` or `release`).
 	 * @return array<int, int> Deduplicated target site IDs.
 	 */
 	public static function sync_targets( mixed $targets, int $post_id = 0, string $post_type = '' ): array {
-		$existing = array_map( 'intval', (array) $targets );
-		$stores   = array();
+		$existing         = array_map( 'intval', (array) $targets );
+		$all_wc_store_ids = array_map( 'intval', array_keys( StoreRegistry::get_available_stores() ) );
+		$non_wc_spokes    = array_values( array_diff( $existing, $all_wc_store_ids ) );
+		$assigned_stores  = array();
 
 		if ( $post_id > 0 && 'artist' === $post_type ) {
-			$stores = StoreRegistry::get_artist_target_stores( $post_id );
+			$assigned_stores = StoreRegistry::get_artist_target_stores( $post_id );
 		} elseif ( $post_id > 0 && 'release' === $post_type ) {
-			$stores = StoreRegistry::get_release_target_stores( $post_id );
+			$assigned_stores = StoreRegistry::get_release_target_stores( $post_id );
 		}
 
-		if ( empty( $stores ) ) {
-			return array_values( array_unique( array_filter( $existing ) ) );
-		}
+		return array_values( array_unique( array_filter( array_merge( $non_wc_spokes, $assigned_stores ) ) ) );
+	}
 
-		return array_values( array_unique( array_filter( array_merge( $existing, $stores ) ) ) );
+	/**
+	 * Protects WooCommerce's spoke-local `_mds_local_product_id` meta from deletion during sync.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param array<int, string> $keys      Protected meta keys.
+	 * @param string             $post_type Post type (`artist` or `release`).
+	 * @return array<int, string> Updated protected meta keys.
+	 */
+	public static function protect_spoke_meta_keys( array $keys, string $post_type ): array {
+		if ( 'release' === $post_type ) {
+			$keys[] = '_mds_local_product_id';
+		}
+		return $keys;
 	}
 
 	/**
