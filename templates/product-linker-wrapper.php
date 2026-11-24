@@ -21,8 +21,15 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 		</p>
 	<?php elseif ( empty( $args['sites'] ) ) : ?>
 		<?php
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The empty-state template contains static markup.
-		echo mds_wc_render_template( 'product-linker-empty.php' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The empty-state template escapes its dynamic values.
+		echo mds_wc_render_template(
+			'product-linker-empty.php',
+			array(
+				'artist_id'       => $args['artist_id'] ?? 0,
+				'artist_name'     => $args['artist_name'] ?? '',
+				'artist_edit_url' => $args['artist_edit_url'] ?? '',
+			)
+		);
 		?>
 	<?php else : ?>
 		<div class="mds-wc-store-cards">

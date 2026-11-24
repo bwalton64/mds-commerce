@@ -39,10 +39,6 @@ final class Assets {
 			return;
 		}
 
-		if ( 'settings_page_mds-release-network-settings-network' === $screen->id ) {
-			self::enqueue_network_settings_script();
-		}
-
 		if ( 'release_page_mds-release-settings' === $screen->id ) {
 			self::enqueue_site_settings_script();
 		}
@@ -51,9 +47,13 @@ final class Assets {
 			self::enqueue_product_linker_script();
 		}
 
+		if ( 'artist' === $screen->post_type && is_multisite() ) {
+			self::enqueue_artist_stores_script();
+		}
+
 		if (
 			'release' === $screen->post_type
-			|| 'settings_page_mds-release-network-settings-network' === $screen->id
+			|| 'artist' === $screen->post_type
 			|| 'release_page_mds-release-settings' === $screen->id
 		) {
 			self::enqueue_admin_styles();
@@ -103,18 +103,22 @@ final class Assets {
 	}
 
 	/**
-	 * Enqueue the network settings script and its REST configuration.
+	 * Enqueue the Artist CPT WooCommerce Target Stores script and its REST configuration.
 	 *
-	 * @since 1.0.1
+	 * @since 1.1.0
 	 *
 	 * @return void
 	 */
-	private static function enqueue_network_settings_script(): void {
-		$handle = 'mds_wc_network_settings';
+	private static function enqueue_artist_stores_script(): void {
+		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'is_hub' ) && ! \MDS_RM_Sync::is_hub() ) {
+			return;
+		}
+
+		$handle = 'mds_wc_artist_stores';
 		$asset  = self::resolve_asset(
-			'network-settings',
-			'src/admin/network-settings.js',
-			array( 'jquery', 'wp-a11y' ),
+			'artist-stores',
+			'src/admin/artist-stores.js',
+			array( 'wp-a11y' ),
 			'js'
 		);
 
@@ -128,18 +132,32 @@ final class Assets {
 		wp_enqueue_script( $handle );
 		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
 
+		global $post;
+		$artist_id = ( $post instanceof WP_Post && 'artist' === $post->post_type ) ? (int) $post->ID : 0;
+
 		$config = array(
-			'url'      => esc_url_raw( rest_url( 'mds-wc/v1/network-settings' ) ),
-			'nonce'    => wp_create_nonce( 'wp_rest' ),
-			'messages' => array(
-				'saved'     => __( 'WooCommerce network settings saved.', 'mds-woocommerce-integration' ),
-				'saveError' => __( 'Unable to save WooCommerce network settings.', 'mds-woocommerce-integration' ),
+			'refreshUrl' => esc_url_raw( rest_url( 'mds-wc/v1/stores/refresh' ) ),
+			'syncUrl'    => $artist_id > 0
+				? esc_url_raw( rest_url( 'mds-wc/v1/artists/' . $artist_id . '/sync-releases' ) )
+				: '',
+			'nonce'      => wp_create_nonce( 'wp_rest' ),
+			'messages'   => array(
+				'refreshing'   => __( 'Refreshing…', 'mds-woocommerce-integration' ),
+				'refreshed'    => __( 'WooCommerce store list refreshed.', 'mds-woocommerce-integration' ),
+				'refreshError' => __( 'Unable to refresh WooCommerce stores.', 'mds-woocommerce-integration' ),
+				'noStores'     => __( 'No active WooCommerce stores were detected on this network.', 'mds-woocommerce-integration' ),
+				'syncing'      => __( 'Syncing Releases…', 'mds-woocommerce-integration' ),
+				/* translators: %d: Number of releases synchronized. */
+				'syncComplete' => __( 'Synced Artist and %d release(s) to selected stores.', 'mds-woocommerce-integration' ),
+				/* translators: 1: Number of releases synchronized, 2: Number of errors. */
+				'syncPartial'  => __( 'Synced %1$d release(s) with %2$d error(s).', 'mds-woocommerce-integration' ),
+				'syncError'    => __( 'Unable to synchronize Artist releases.', 'mds-woocommerce-integration' ),
 			),
 		);
 
 		wp_add_inline_script(
 			$handle,
-			'window.mdsWcNetworkSettings = ' . wp_json_encode( $config ) . ';',
+			'window.mdsWcArtistStores = ' . wp_json_encode( $config ) . ';',
 			'before'
 		);
 	}

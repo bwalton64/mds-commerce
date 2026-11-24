@@ -12,10 +12,10 @@ namespace MDS\WooCommerce;
 
 use MDS\WooCommerce\Admin\Assets;
 use MDS\WooCommerce\Admin\MetaBoxes;
-use MDS\WooCommerce\Admin\NetworkSettings;
 use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Integration\ReleaseMeta;
 use MDS\WooCommerce\Rest\RestApi;
+use MDS\WooCommerce\Support\StoreRegistry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -37,10 +37,11 @@ final class Plugin {
 		add_action( 'init', array( ReleaseMeta::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue' ) );
 		add_action( 'mds_rm_register_custom_meta_boxes', array( MetaBoxes::class, 'register' ) );
+		add_action( 'mds_rm_save_custom_meta', array( MetaBoxes::class, 'save_artist_stores' ), 10, 2 );
 		add_action( 'rest_api_init', array( RestApi::class, 'register_routes' ) );
 		add_action( 'mds_rm_after_cache_purge', array( self::class, 'on_after_cache_purge' ), 10, 4 );
 
-		NetworkSettings::register();
+		StoreRegistry::register_hooks();
 		SiteSettings::register();
 	}
 
@@ -140,51 +141,68 @@ final class Plugin {
 	}
 
 	/**
-	 * Return all configured WooCommerce integrated site IDs, merging legacy site options.
+	 * Return all active WooCommerce store IDs across the network.
+	 *
+	 * Retained as a compatibility wrapper around StoreRegistry::get_available_stores().
 	 *
 	 * @since 1.0.1
 	 *
 	 * @return array<int, int> Deduplicated list of positive site IDs.
 	 */
 	public static function get_integrated_sites(): array {
-		$current = (array) get_site_option( 'mds_rm_wc_integrated_sites', array() );
-		$legacy  = (array) get_site_option( 'mds_rm_woo_sites', get_option( 'mds_rm_woo_sites', array() ) );
-
-		$merged = array_filter( array_map( 'absint', array_merge( $current, $legacy ) ) );
-
-		return array_values( array_unique( $merged ) );
+		return array_keys( StoreRegistry::get_available_stores() );
 	}
 
 	/**
-	 * Determine whether the current Hub user may link or seed products on an integrated store.
+	 * Determine whether the current Hub user may link or seed products on a store for a release.
 	 *
-	 * Allows Hub Release editors who do not hold separate spoke-site accounts to link or
-	 * seed draft products on network-approved WooCommerce stores.
+	 * Enforces two-layer security:
+	 * 1. The target store must be an active WooCommerce site detected by StoreRegistry.
+	 * 2. The target store must be assigned to the Release's Artist (or already hold a link
+	 *    on this Release when $allow_existing_link is true for unlink operations).
 	 *
 	 * @since 1.0.1
 	 *
-	 * @param int $release_id Release post ID on the hub site.
-	 * @param int $store_id   Integrated WooCommerce store site ID.
+	 * @param int  $release_id          Release post ID on the hub site.
+	 * @param int  $store_id            Target WooCommerce store site ID.
+	 * @param bool $allow_existing_link Whether to allow stores that are unassigned on the Artist
+	 *                                  but still hold a legacy link on this Release (for unlink).
 	 * @return bool True when permitted.
 	 */
-	public static function user_can_manage_spoke_product( int $release_id, int $store_id ): bool {
+	public static function user_can_manage_spoke_product(
+		int $release_id,
+		int $store_id,
+		bool $allow_existing_link = false
+	): bool {
 		$release = get_post( $release_id );
 		if ( ! $release || 'release' !== $release->post_type || ! current_user_can( 'edit_post', $release_id ) ) {
 			return false;
 		}
 
-		if ( ! RestApi::is_integrated_store( $store_id ) ) {
+		if ( ! StoreRegistry::is_woocommerce_store( $store_id ) ) {
+			return false;
+		}
+
+		$artist_stores = StoreRegistry::get_release_target_stores( $release_id );
+		$is_allowed    = in_array( $store_id, $artist_stores, true );
+
+		if ( ! $is_allowed && $allow_existing_link ) {
+			$linked     = get_post_meta( $release_id, '_mds_linked_products', true );
+			$is_allowed = is_array( $linked ) && isset( $linked[ $store_id ] );
+		}
+
+		if ( ! $is_allowed ) {
 			return false;
 		}
 
 		/**
-		 * Filters whether the current Hub user can link or seed a WooCommerce product on an integrated store.
+		 * Filters whether the current Hub user can link or seed a WooCommerce product on a store.
 		 *
 		 * @since 1.0.1
 		 *
 		 * @param bool $can_manage Whether the user is allowed to manage the link/seed action.
 		 * @param int  $release_id Release post ID on the hub site.
-		 * @param int  $store_id   Target integrated store site ID.
+		 * @param int  $store_id   Target WooCommerce store site ID.
 		 */
 		return (bool) apply_filters( 'mds_wc_user_can_manage_spoke_product', true, $release_id, $store_id );
 	}

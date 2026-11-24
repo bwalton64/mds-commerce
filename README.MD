@@ -12,12 +12,13 @@ Extends **MDS Release Manager** with a **Seed & Hand Off** multisite WooCommerce
 
 This plugin uses a Composer PSR-4 architecture under the `MDS\WooCommerce\` namespace (`src/`) alongside a lightweight WordPress bootstrap (`mds-woocommerce-integration.php`) and thin procedural template helpers (`includes/helpers.php`).
 
-- `MDS\WooCommerce\Plugin` — Bootstraps all services on `plugins_loaded`, merges current/legacy integrated store lists, and enforces delegated Hub-to-Spoke permissions.
+- `MDS\WooCommerce\Plugin` — Bootstraps all services on `plugins_loaded`, wires `StoreRegistry` and `MDS_RM_Cache`, and enforces two-layer delegated Hub-to-Spoke permissions.
+- `MDS\WooCommerce\Support\StoreRegistry` — Auto-detects active WooCommerce stores across the network (cached in a network transient), resolves per-Artist and per-Release target stores with per-request memoization, and runs a one-time backfill for existing Hub Artists.
 - `MDS\WooCommerce\Admin\Assets` — Conditionally enqueues zero-CDN admin scripts/styles (using `@wordpress/scripts` `build/*.asset.php` manifests when present, with fallback to `src/admin/`).
-- `MDS\WooCommerce\Admin\MetaBoxes` — Renders ergonomic WooCommerce Store Cards and the native `<dialog>` Create Product modal on `release` posts.
-- `MDS\WooCommerce\Admin\NetworkSettings` — Registers the WooCommerce tab in Release Manager Network Settings.
-- `MDS\WooCommerce\Integration\ReleaseMeta` — Hooks into Release Manager shadow sync and WooCommerce product summary templates.
-- `MDS\WooCommerce\Rest\RestApi` — Exposes `/wp-json/mds-wc/v1/*` endpoints (`/network-settings`, `/search`, `/link`, `/taxonomies`, `/generate`) with `mds-woo/v1` backward-compatible aliases.
+- `MDS\WooCommerce\Admin\MetaBoxes` — Renders the **WooCommerce Target Stores** meta box on Hub `artist` posts and WooCommerce Store Cards (including **Unassigned Store** cards) + native `<dialog>` Create Product modal on Hub `release` posts.
+- `MDS\WooCommerce\Admin\SiteSettings` — Registers the **Releases -> Settings -> WooCommerce Integration** visual single-product layout tab.
+- `MDS\WooCommerce\Integration\ReleaseMeta` — Scopes Release Manager shadow sync to each Artist's target stores and injects configured MDS blocks on single WooCommerce product pages (Block & Classic themes).
+- `MDS\WooCommerce\Rest\RestApi` — Exposes `/wp-json/mds-wc/v1/*` endpoints (`/settings`, `/stores/refresh`, `/artists/{id}/sync-releases`, `/search`, `/link`, `/taxonomies`, `/generate`) with `mds-woo/v1` backward-compatible aliases.
 - `MDS\WooCommerce\Support\TemplateRenderer` — Safely renders templates from `templates/` with theme overrides in `mds-woocommerce-integration/`.
 
 ## Developer Setup
@@ -48,9 +49,9 @@ This plugin uses a Composer PSR-4 architecture under the `MDS\WooCommerce\` name
   ```
 - **Standalone PHP unit check:**
   ```bash
-  php tests/settings-tab.php
+  php tests/store-registry.php
   ```
 
 ## LocalWP Environment
 
-Configured for the LocalWP site at `C:\Users\Brian\Local Sites\bgw-dev\app\public` (`http://bgw-dev.local/`). Activate both **MDS Release Manager** and **MDS WooCommerce Integration**, then configure integrated WooCommerce sites under **Network Admin -> Settings -> Release Manager -> WooCommerce**.
+Configured for the LocalWP site at `C:\Users\Brian\Local Sites\bgw-dev\app\public` (`http://bgw-dev.local/`). Activate both **MDS Release Manager** and **MDS WooCommerce Integration**, then open any **Artist** on the Hub site to assign one or more auto-detected **WooCommerce Target Stores**.

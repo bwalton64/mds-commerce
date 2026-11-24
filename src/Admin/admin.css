@@ -1026,3 +1026,70 @@
 	border-top: 1px solid #dcdcde;
 	background: #fff;
 }
+
+/* Artist CPT: WooCommerce Target Stores Meta Box */
+.mds-wc-artist-stores__fieldset {
+	border: 0;
+	margin: 12px 0;
+	padding: 0;
+}
+
+.mds-wc-artist-stores__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.mds-wc-artist-stores__item {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 8px 10px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.mds-wc-artist-stores__item:hover {
+	border-color: #2271b1;
+}
+
+.mds-wc-artist-stores__item input[type="checkbox"] {
+	margin-top: 2px;
+}
+
+.mds-wc-artist-stores__label {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mds-wc-artist-stores__url {
+	font-size: 12px;
+	color: #50575e;
+}
+
+.mds-wc-artist-stores__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.mds-wc-artist-stores__dirty-hint {
+	margin-top: 8px;
+	color: #996800;
+}
+
+.mds-wc-store-card.is-unassigned {
+	border-style: dashed;
+	border-color: #dba617;
+	background: #fcf9e8;
+}
+
+.mds-wc-badge--unassigned {
+	background: #fcf0c3;
+	color: #705000;
+	border: 1px solid #dba617;
+}

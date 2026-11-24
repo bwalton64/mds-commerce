@@ -14,7 +14,7 @@ Extends MDS Release Manager with multisite WooCommerce product linking, Draft pr
 
 MDS WooCommerce Integration connects MDS Release Manager with WooCommerce stores across a WordPress multisite network using a clean **Seed & Hand Off** workflow:
 
-* Configure which WooCommerce sites participate in product linking from the Release Manager Network Settings tab.
+* Auto-detects active WooCommerce stores across your multisite network (cached) and lets you assign one or more target stores directly on each **Artist** in the Hub.
 * Search existing WooCommerce products (published or draft) and link or unlink them directly from Store Cards in the Release editor.
 * Seed new **Draft** WooCommerce products from a compact modal pre-filled with the Release's title, description, UPC/SKU, and featured artwork—plus optional short description, price, categories, and tags—without overwriting Store Admin edits later.
 * Automatically broadcast product links during hub-and-spoke sync and inject Release Meta, Release Links, or custom shortcodes/blocks on single WooCommerce product pages (configured per-site under **Releases -> Settings -> WooCommerce Integration**, supporting both Block Themes and Classic WooCommerce themes).
@@ -24,7 +24,7 @@ MDS WooCommerce Integration connects MDS Release Manager with WooCommerce stores
 1. Upload the `mds-woocommerce-integration` folder to `/wp-content/plugins/`.
 2. Run `composer install` inside the plugin directory if installing from source.
 3. Activate **MDS Release Manager** and **MDS WooCommerce Integration** through the WordPress Plugins screen (or Network Activate on multisite).
-4. Configure integrated WooCommerce stores in **Network Admin -> Settings -> Release Manager -> WooCommerce**.
+4. Open any **Artist** on the Hub site and select one or more auto-detected **WooCommerce Target Stores** (existing Artists are automatically backfilled from legacy network settings).
 
 == Frequently Asked Questions ==
 

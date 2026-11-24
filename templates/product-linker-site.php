@@ -10,15 +10,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$mds_wc_site       = $args['site'];
-$mds_wc_store_id   = absint( $mds_wc_site['store_id'] );
-$mds_wc_product    = is_array( $mds_wc_site['product'] ?? null ) ? $mds_wc_site['product'] : null;
-$mds_wc_is_linked  = null !== $mds_wc_product && ! empty( $mds_wc_product['id'] );
-$mds_wc_search_id  = 'mds-wc-search-' . $mds_wc_store_id;
-$mds_wc_listbox_id = 'mds-wc-results-' . $mds_wc_store_id;
+$mds_wc_site          = $args['site'];
+$mds_wc_store_id      = absint( $mds_wc_site['store_id'] );
+$mds_wc_product       = is_array( $mds_wc_site['product'] ?? null ) ? $mds_wc_site['product'] : null;
+$mds_wc_is_linked     = null !== $mds_wc_product && ! empty( $mds_wc_product['id'] );
+$mds_wc_is_unassigned = ! empty( $mds_wc_site['is_unassigned'] );
+$mds_wc_search_id     = 'mds-wc-search-' . $mds_wc_store_id;
+$mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 ?>
 <section
-	class="mds-wc-store-card <?php echo $mds_wc_is_linked ? 'is-linked' : 'is-unlinked'; ?>"
+	class="mds-wc-store-card <?php echo $mds_wc_is_linked ? 'is-linked' : 'is-unlinked'; ?><?php echo $mds_wc_is_unassigned ? ' is-unassigned' : ''; ?>"
 	data-store-id="<?php echo esc_attr( $mds_wc_store_id ); ?>"
 	data-store-name="<?php echo esc_attr( $mds_wc_site['store_name'] ); ?>"
 	data-release-id="<?php echo esc_attr( $args['post_id'] ); ?>"
@@ -31,13 +32,19 @@ $mds_wc_listbox_id = 'mds-wc-results-' . $mds_wc_store_id;
 				<span class="mds-wc-store-card__url"><?php echo esc_html( $mds_wc_site['store_url'] ); ?></span>
 			<?php endif; ?>
 		</div>
-		<span class="mds-wc-badge <?php echo $mds_wc_is_linked ? 'mds-wc-badge--linked' : 'mds-wc-badge--unlinked'; ?>" data-role="connection-badge">
-			<?php
-			echo $mds_wc_is_linked
-				? esc_html__( 'Linked', 'mds-woocommerce-integration' )
-				: esc_html__( 'Not Linked', 'mds-woocommerce-integration' );
-			?>
-		</span>
+		<?php if ( $mds_wc_is_unassigned ) : ?>
+			<span class="mds-wc-badge mds-wc-badge--unassigned" data-role="connection-badge">
+				<?php esc_html_e( 'Unassigned Store', 'mds-woocommerce-integration' ); ?>
+			</span>
+		<?php else : ?>
+			<span class="mds-wc-badge <?php echo $mds_wc_is_linked ? 'mds-wc-badge--linked' : 'mds-wc-badge--unlinked'; ?>" data-role="connection-badge">
+				<?php
+				echo $mds_wc_is_linked
+					? esc_html__( 'Linked', 'mds-woocommerce-integration' )
+					: esc_html__( 'Not Linked', 'mds-woocommerce-integration' );
+				?>
+			</span>
+		<?php endif; ?>
 	</header>
 
 	<div class="mds-wc-store-card__linked" <?php echo $mds_wc_is_linked ? '' : 'hidden'; ?>>
@@ -106,9 +113,11 @@ $mds_wc_listbox_id = 'mds-wc-results-' . $mds_wc_store_id;
 				<span class="dashicons dashicons-external" aria-hidden="true"></span>
 			</a>
 
-			<button type="button" class="button button-link mds-wc-action-change">
-				<?php esc_html_e( 'Change Link', 'mds-woocommerce-integration' ); ?>
-			</button>
+			<?php if ( ! $mds_wc_is_unassigned ) : ?>
+				<button type="button" class="button button-link mds-wc-action-change">
+					<?php esc_html_e( 'Change Link', 'mds-woocommerce-integration' ); ?>
+				</button>
+			<?php endif; ?>
 
 			<button type="button" class="button button-link-delete mds-wc-action-unlink">
 				<?php esc_html_e( 'Unlink', 'mds-woocommerce-integration' ); ?>
@@ -116,6 +125,7 @@ $mds_wc_listbox_id = 'mds-wc-results-' . $mds_wc_store_id;
 		</div>
 	</div>
 
+	<?php if ( ! $mds_wc_is_unassigned ) : ?>
 	<div class="mds-wc-store-card__picker" <?php echo $mds_wc_is_linked ? 'hidden' : ''; ?>>
 		<div class="mds-wc-combobox">
 			<label class="mds-wc-linker-label" for="<?php echo esc_attr( $mds_wc_search_id ); ?>">
@@ -157,4 +167,5 @@ $mds_wc_listbox_id = 'mds-wc-results-' . $mds_wc_store_id;
 			</div>
 		</div>
 	</div>
+	<?php endif; ?>
 </section>

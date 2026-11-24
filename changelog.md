@@ -6,8 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- **Per-Artist WooCommerce Target Stores** (`MDS\WooCommerce\Support\StoreRegistry`, `templates/artist-stores-box.php`, `src/Admin/artist-stores.js`): moved WooCommerce target-store assignment from Network Settings into a multi-select **WooCommerce Target Stores** meta box on the Hub **Artist** edit screen (`_mds_wc_target_stores` post meta).
+- **Cached Network WooCommerce Store Auto-Detection** (`StoreRegistry::get_available_stores()`): automatically discovers active WooCommerce sites across the multisite network (zero blog switches when WooCommerce is network-activated), caches results in the `mds_wc_network_stores` network transient (1-hour TTL), and invalidates automatically on WooCommerce activation/deactivation and site lifecycle hooks.
+- **Batched Artist Release Sync & Store Refresh REST Endpoints**: added `POST /mds-wc/v1/artists/{id}/sync-releases` (cursor-paged 10 releases per batch with `wp.a11y.speak()` status updates) and `POST /mds-wc/v1/stores/refresh`.
+- **Unassigned Store Cards**: existing `_mds_linked_products` entries for stores later unchecked on an Artist remain visible on Release Store Cards with an **Unassigned Store** badge and working **Unlink** action, while blocking new product links/creates on unassigned stores.
+- **One-Time Idempotent Artist Backfill** (`StoreRegistry::maybe_backfill_artist_stores()`): automatically copies legacy `mds_rm_wc_integrated_sites` / `mds_rm_woo_sites` values onto existing Hub Artists (`mds_wc_artist_stores_migrated`) without destroying legacy `wp_sitemeta` options.
+- Standalone PHP unit test suite in `tests/store-registry.php`.
+
 ### Changed
-- Wired `do_action( 'mds_rm_purge_cache', ... )` into WooCommerce product link/unlink/create (`woocommerce_link`) and network store toggles (`woocommerce_network_settings`) so Release Manager's `MDS_RM_Cache` coalesces and flushes affected Hub and Spoke store caches automatically.
+- Scoped `mds_rm_sync_target_sites` (`ReleaseMeta::sync_targets()`) per Artist/Release using request-memoized UUID-to-Artist lookups to eliminate N+1 queries during batch syncs and prevent broadcasting Releases to unrelated WooCommerce stores.
+- Memoized frontend single-product injection eligibility (`ReleaseMeta::is_eligible_store_site()`) per request using `Plugin::is_woocommerce_active_on_current_site()`, eliminating repeated `get_site_option()` calls inside `render_block`.
+- Added `'no_found_rows' => true` and `'update_post_term_cache' => false` to `RestApi::search_products()` and enforced two-layer security in `Plugin::user_can_manage_spoke_product()` (active WC store + Artist assignment, or existing link for `DELETE /link`).
+- Wired `do_action( 'mds_rm_purge_cache', ... )` into WooCommerce product link/unlink/create (`woocommerce_link`), Artist store assignment changes (`woocommerce_artist_stores`), and Artist batch syncs (`woocommerce_artist_sync`) so Release Manager's `MDS_RM_Cache` coalesces and flushes affected Hub and Spoke store caches automatically.
+
+### Removed
+- Retired the **Network Admin -> Settings -> Release Manager -> WooCommerce** tab (`src/Admin/NetworkSettings.php`, `src/Admin/network-settings.js`, `templates/network-settings-*.php`, `POST /mds-wc/v1/network-settings`, and `tests/settings-tab.php`).
 
 ## [1.0.1] - 2026-11-23
 

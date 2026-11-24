@@ -12,6 +12,7 @@ namespace MDS\WooCommerce\Integration;
 
 use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Plugin;
+use MDS\WooCommerce\Support\StoreRegistry;
 use WC_Product;
 use WP_Block;
 use WP_Block_Type_Registry;
@@ -35,6 +36,14 @@ final class ReleaseMeta {
 	 * @var array<string, bool>
 	 */
 	private static array $rendered_items = array();
+
+	/**
+	 * Per-request memoized eligibility flag for automatic single-product block injection.
+	 *
+	 * @since 1.1.0
+	 * @var bool|null
+	 */
+	private static ?bool $is_eligible_store = null;
 
 	/**
 	 * Classic WooCommerce action/priority map keyed by placement identifier.
@@ -114,7 +123,7 @@ final class ReleaseMeta {
 			return;
 		}
 
-		add_filter( 'mds_rm_sync_target_sites', array( self::class, 'sync_targets' ) );
+		add_filter( 'mds_rm_sync_target_sites', array( self::class, 'sync_targets' ), 10, 3 );
 		add_action( 'mds_rm_after_shadow_meta_sync', array( self::class, 'map_product' ), 10, 4 );
 		add_filter( 'mds_rm_release_meta_context_upc', array( self::class, 'context_upc' ), 10, 2 );
 		add_action( 'mds_rm_after_buy_now_field', array( self::class, 'buy_now_button' ) );
@@ -169,17 +178,33 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Merge configured WooCommerce stores (current and legacy options) into Release Manager sync targets.
+	 * Merge per-Artist WooCommerce target stores into Release Manager sync targets.
+	 *
+	 * Scopes Artist and Release broadcasts strictly to the WooCommerce store(s) assigned
+	 * on the Artist CPT (memoized per request inside StoreRegistry to avoid N+1 queries).
 	 *
 	 * @since 1.0.1
 	 *
-	 * @param mixed $targets Existing sync target site IDs.
+	 * @param mixed  $targets   Existing sync target site IDs.
+	 * @param int    $post_id   Hub post ID being synchronized.
+	 * @param string $post_type Post type (`artist` or `release`).
 	 * @return array<int, int> Deduplicated target site IDs.
 	 */
-	public static function sync_targets( mixed $targets ): array {
-		$integrated = Plugin::get_integrated_sites();
+	public static function sync_targets( mixed $targets, int $post_id = 0, string $post_type = '' ): array {
+		$existing = array_map( 'intval', (array) $targets );
+		$stores   = array();
 
-		return array_values( array_unique( array_merge( array_map( 'intval', (array) $targets ), $integrated ) ) );
+		if ( $post_id > 0 && 'artist' === $post_type ) {
+			$stores = StoreRegistry::get_artist_target_stores( $post_id );
+		} elseif ( $post_id > 0 && 'release' === $post_type ) {
+			$stores = StoreRegistry::get_release_target_stores( $post_id );
+		}
+
+		if ( empty( $stores ) ) {
+			return array_values( array_unique( array_filter( $existing ) ) );
+		}
+
+		return array_values( array_unique( array_filter( array_merge( $existing, $stores ) ) ) );
 	}
 
 	/**
@@ -241,18 +266,21 @@ final class ReleaseMeta {
 	/**
 	 * Check whether the current site is eligible for automatic WooCommerce product injection.
 	 *
+	 * Memoized per request so `render_block` never performs repeated option/site lookups
+	 * or cross-blog Hub switches on frontend product page views.
+	 *
 	 * @since 1.0.1
 	 *
 	 * @return bool True when injection is permitted on this site.
 	 */
 	private static function is_eligible_store_site(): bool {
-		if ( ! is_multisite() ) {
-			return true;
+		if ( null !== self::$is_eligible_store ) {
+			return self::$is_eligible_store;
 		}
 
-		$sites = Plugin::get_integrated_sites();
+		self::$is_eligible_store = Plugin::is_woocommerce_active_on_current_site();
 
-		return in_array( (int) get_current_blog_id(), $sites, true );
+		return self::$is_eligible_store;
 	}
 
 	/**

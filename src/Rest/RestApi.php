@@ -12,6 +12,7 @@ namespace MDS\WooCommerce\Rest;
 
 use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Plugin;
+use MDS\WooCommerce\Support\StoreRegistry;
 use WP_Error;
 use WP_Post;
 use WP_REST_Request;
@@ -56,7 +57,7 @@ final class RestApi {
 
 		foreach ( array( self::NAMESPACE_PRIMARY, self::NAMESPACE_LEGACY ) as $rest_namespace ) {
 			self::register_product_routes( $rest_namespace );
-			self::register_network_settings_route( $rest_namespace );
+			self::register_settings_and_artist_routes( $rest_namespace );
 		}
 	}
 
@@ -122,26 +123,14 @@ final class RestApi {
 	}
 
 	/**
-	 * Register the network settings route for a namespace.
+	 * Register site settings, store discovery refresh, and Artist batch-sync routes.
 	 *
-	 * @since 1.0.1
+	 * @since 1.1.0
 	 *
 	 * @param string $rest_namespace REST API namespace.
 	 * @return void
 	 */
-	private static function register_network_settings_route( string $rest_namespace ): void {
-		register_rest_route(
-			$rest_namespace,
-			'/network-settings',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( self::class, 'save_network_settings' ),
-				'permission_callback' => static function (): bool {
-					return current_user_can( 'manage_network_options' );
-				},
-			)
-		);
-
+	private static function register_settings_and_artist_routes( string $rest_namespace ): void {
 		register_rest_route(
 			$rest_namespace,
 			'/settings',
@@ -150,6 +139,32 @@ final class RestApi {
 				'callback'            => array( self::class, 'save_site_settings' ),
 				'permission_callback' => static function (): bool {
 					return current_user_can( 'manage_options' );
+				},
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/stores/refresh',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'refresh_stores' ),
+				'permission_callback' => static function (): bool {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/artists/(?P<id>\d+)/sync-releases',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'sync_artist_releases' ),
+				'permission_callback' => static function ( WP_REST_Request $request ): bool {
+					$artist_id = absint( $request->get_param( 'id' ) );
+					$is_hub    = ! class_exists( '\MDS_RM_Sync' ) || ! method_exists( '\MDS_RM_Sync', 'is_hub' ) || \MDS_RM_Sync::is_hub();
+					return $artist_id > 0 && $is_hub && current_user_can( 'edit_post', $artist_id );
 				},
 			)
 		);
@@ -191,47 +206,133 @@ final class RestApi {
 	}
 
 	/**
-	 * Save WooCommerce network settings.
+	 * Flush the cached network WooCommerce store list and return the refreshed stores.
 	 *
-	 * @since 1.0.1
+	 * @since 1.1.0
 	 *
-	 * @param object $request REST request object (WP_REST_Request or test stub).
-	 * @return WP_REST_Response|mixed REST response.
+	 * @return WP_REST_Response Refreshed store list.
 	 */
-	public static function save_network_settings( object $request ): mixed {
-		$params   = $request->get_body_params();
-		$wc_sites = array();
+	public static function refresh_stores(): WP_REST_Response {
+		StoreRegistry::invalidate_cache();
+		$stores = StoreRegistry::get_available_stores( true );
 
-		if ( isset( $params['mds_rm_wc_integrated_sites'] ) && is_array( $params['mds_rm_wc_integrated_sites'] ) ) {
-			$available_sites = array_map(
-				'intval',
-				get_sites(
-					array(
-						'fields' => 'ids',
-						'number' => 0,
-					)
-				)
+		return rest_ensure_response(
+			array(
+				'success' => true,
+				'stores'  => array_values( $stores ),
+			)
+		);
+	}
+
+	/**
+	 * Sync one bounded batch of an Artist's Releases (plus the Artist on page 1)
+	 * to the Artist's assigned WooCommerce target stores.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error Batch progress response or error.
+	 */
+	public static function sync_artist_releases( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$artist_id = absint( $request->get_param( 'id' ) );
+		$artist    = get_post( $artist_id );
+
+		if ( ! $artist instanceof WP_Post || 'artist' !== $artist->post_type ) {
+			return new WP_Error(
+				'invalid_artist',
+				__( 'Artist not found.', 'mds-woocommerce-integration' ),
+				array( 'status' => 404 )
 			);
-			$requested_sites = array_map(
-				static function ( mixed $site_id ): int {
-					return is_scalar( $site_id ) ? absint( $site_id ) : 0;
-				},
-				$params['mds_rm_wc_integrated_sites']
-			);
-			$wc_sites        = array_values( array_intersect( array_unique( $requested_sites ), $available_sites ) );
 		}
 
-		$previous_sites = array_map( 'absint', (array) get_site_option( 'mds_rm_wc_integrated_sites', array() ) );
-		update_site_option( 'mds_rm_wc_integrated_sites', $wc_sites );
+		$target_stores = StoreRegistry::get_artist_target_stores( $artist_id );
+		if ( empty( $target_stores ) ) {
+			return new WP_Error(
+				'no_target_stores',
+				__( 'Assign at least one WooCommerce store to this Artist before syncing.', 'mds-woocommerce-integration' ),
+				array( 'status' => 400 )
+			);
+		}
 
-		$affected_sites = array_values( array_unique( array_merge( array_diff( $previous_sites, $wc_sites ), array_diff( $wc_sites, $previous_sites ) ) ) );
-		foreach ( $affected_sites as $affected_site_id ) {
-			if ( $affected_site_id > 0 ) {
-				Plugin::request_cache_purge( 'woocommerce_network_settings', $affected_site_id );
+		if ( ! class_exists( '\MDS_RM_Sync' ) || ! method_exists( '\MDS_RM_Sync', 'broadcast_batch_to_spokes' ) ) {
+			return new WP_Error(
+				'sync_unavailable',
+				__( 'MDS Release Manager synchronization is unavailable.', 'mds-woocommerce-integration' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$page       = max( 1, absint( $request->get_param( 'page' ) ) );
+		$batch_size = 10;
+		$items      = array();
+
+		if ( 1 === $page ) {
+			$items[] = array(
+				'id'        => $artist_id,
+				'post_type' => 'artist',
+			);
+		}
+
+		$artist_uuid = (string) get_post_meta( $artist_id, '_mds_artist_uuid', true );
+		$release_ids = array();
+
+		if ( '' !== $artist_uuid ) {
+			$release_ids = get_posts(
+				array(
+					'post_type'              => 'release',
+					'post_status'            => array( 'publish', 'draft', 'pending', 'future', 'private' ),
+					'posts_per_page'         => $batch_size,
+					'paged'                  => $page,
+					'orderby'                => 'ID',
+					'order'                  => 'ASC',
+					'fields'                 => 'ids',
+					'no_found_rows'          => true,
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+					'meta_key'               => 'artist_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded batch sync for one Artist's releases.
+					'meta_value'             => $artist_uuid, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Bounded batch sync for one Artist's releases.
+				)
+			);
+		}
+
+		foreach ( $release_ids as $release_id ) {
+			$items[] = array(
+				'id'        => (int) $release_id,
+				'post_type' => 'release',
+			);
+		}
+
+		$synced      = 0;
+		$error_count = 0;
+
+		if ( ! empty( $items ) ) {
+			$results = \MDS_RM_Sync::broadcast_batch_to_spokes( $items );
+			foreach ( $items as $item ) {
+				$key    = $item['post_type'] . ':' . $item['id'];
+				$result = $results[ $key ] ?? null;
+				if ( is_wp_error( $result ) ) {
+					++$error_count;
+				} elseif ( 'release' === $item['post_type'] ) {
+					++$synced;
+				}
 			}
 		}
 
-		return rest_ensure_response( array( 'success' => true ) );
+		$done = count( $release_ids ) < $batch_size;
+		if ( $done ) {
+			foreach ( $target_stores as $store_id ) {
+				Plugin::request_cache_purge( 'woocommerce_artist_sync', $store_id );
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'success'     => true,
+				'synced'      => $synced,
+				'error_count' => $error_count,
+				'done'        => $done,
+			)
+		);
 	}
 
 	/**
@@ -318,7 +419,7 @@ final class RestApi {
 			);
 		}
 
-		$access_error = self::validate_release_and_store_access( $release_id, $store_id );
+		$access_error = self::validate_release_and_store_access( $release_id, $store_id, true );
 		if ( is_wp_error( $access_error ) ) {
 			return $access_error;
 		}
@@ -538,25 +639,15 @@ final class RestApi {
 	}
 
 	/**
-	 * Check whether a site is configured as an integrated store.
+	 * Check whether a site is an active WooCommerce store in StoreRegistry.
 	 *
 	 * @since 1.0.1
 	 *
 	 * @param int $store_id Store site ID.
-	 * @return bool True when the site is an integrated store.
+	 * @return bool True when the site is an active WooCommerce store.
 	 */
 	public static function is_integrated_store( int $store_id ): bool {
-		$store_id         = absint( $store_id );
-		$integrated_sites = array_map(
-			'absint',
-			(array) get_site_option( 'mds_rm_wc_integrated_sites', array() )
-		);
-
-		if ( ! $store_id || ! in_array( $store_id, $integrated_sites, true ) || ! get_site( $store_id ) ) {
-			return false;
-		}
-
-		return is_multisite() || get_current_blog_id() === $store_id;
+		return StoreRegistry::is_woocommerce_store( absint( $store_id ) );
 	}
 
 	/**
@@ -587,12 +678,14 @@ final class RestApi {
 			self::register_product_types( false );
 			$products = get_posts(
 				array(
-					'post_type'      => 'product',
-					'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
-					'posts_per_page' => 20,
-					's'              => $search,
-					'orderby'        => 'title',
-					'order'          => 'ASC',
+					'post_type'              => 'product',
+					'post_status'            => array( 'publish', 'draft', 'pending', 'private' ),
+					'posts_per_page'         => 20,
+					's'                      => $search,
+					'orderby'                => 'title',
+					'order'                  => 'ASC',
+					'no_found_rows'          => true,
+					'update_post_term_cache' => false,
 				)
 			);
 
@@ -614,11 +707,16 @@ final class RestApi {
 	 *
 	 * @since 1.0.1
 	 *
-	 * @param int $release_id Release post ID.
-	 * @param int $store_id   Store site ID.
+	 * @param int  $release_id          Release post ID.
+	 * @param int  $store_id            Store site ID.
+	 * @param bool $allow_existing_link Allow unassigned stores that still hold a legacy link (for unlink).
 	 * @return true|WP_Error True on success, WP_Error on failure.
 	 */
-	private static function validate_release_and_store_access( int $release_id, int $store_id ): bool|WP_Error {
+	private static function validate_release_and_store_access(
+		int $release_id,
+		int $store_id,
+		bool $allow_existing_link = false
+	): bool|WP_Error {
 		$release = get_post( $release_id );
 		if (
 			! $release_id
@@ -636,15 +734,15 @@ final class RestApi {
 		if ( ! self::is_integrated_store( $store_id ) ) {
 			return new WP_Error(
 				'invalid_store',
-				__( 'The selected store is not integrated.', 'mds-woocommerce-integration' ),
+				__( 'The selected store does not have WooCommerce active.', 'mds-woocommerce-integration' ),
 				array( 'status' => 403 )
 			);
 		}
 
-		if ( ! Plugin::user_can_manage_spoke_product( $release_id, $store_id ) ) {
+		if ( ! Plugin::user_can_manage_spoke_product( $release_id, $store_id, $allow_existing_link ) ) {
 			return new WP_Error(
 				'forbidden_store',
-				__( 'You are not allowed to manage WooCommerce links for this store.', 'mds-woocommerce-integration' ),
+				__( 'This store is not assigned to the Release’s Artist or you do not have permission to manage it.', 'mds-woocommerce-integration' ),
 				array( 'status' => 403 )
 			);
 		}

@@ -24,13 +24,15 @@ flowchart TD
     Boot --> Helpers["includes/helpers.php"]
     Autoload --> Plugin["MDS\\WooCommerce\\Plugin::init()"]
     Plugin --> Assets["Admin\\Assets (admin_enqueue_scripts)"]
-    Plugin --> MetaBoxes["Admin\\MetaBoxes (mds_rm_register_custom_meta_boxes)"]
-    Plugin --> NetSettings["Admin\\NetworkSettings (mds_rm_network_settings_*)"]
+    Plugin --> MetaBoxes["Admin\\MetaBoxes (mds_rm_register_custom_meta_boxes / save)"]
+    Plugin --> StoreReg["Support\\StoreRegistry (cached WC store discovery & backfill)"]
     Plugin --> SiteSettings["Admin\\SiteSettings (mds_rm_site_settings_tabs)"]
-    Plugin --> ReleaseMeta["Integration\\ReleaseMeta (init / render_block)"]
+    Plugin --> ReleaseMeta["Integration\\ReleaseMeta (init / render_block / sync_targets)"]
     Plugin --> RestApi["Rest\\RestApi (rest_api_init)"]
     MetaBoxes --> Renderer["Support\\TemplateRenderer"]
-    NetSettings --> Renderer
+    MetaBoxes --> StoreReg
+    ReleaseMeta --> StoreReg
+    RestApi --> StoreReg
     Renderer --> Templates["templates/*.php"]
 ```
 
@@ -46,21 +48,23 @@ mds-woocommerce-integration/
 │   ├── Plugin.php                    # Service registrar, unified site list, delegated Hub->Spoke permission check
 │   ├── Admin/
 │   │   ├── Assets.php                # Conditional admin JS/CSS enqueuing (.asset.php + inline seed config)
-│   │   ├── MetaBoxes.php             # Release editor WooCommerce Store Cards & Create Product modal host
-│   │   └── NetworkSettings.php       # Release Manager Network Settings WooCommerce tab & section
+│   │   ├── MetaBoxes.php             # Artist Target Stores meta box & Release Store Cards / Create Product modal
+│   │   └── SiteSettings.php          # Releases -> Settings -> WooCommerce Integration visual blueprint tab
 │   ├── Integration/
-│   │   └── ReleaseMeta.php           # Release Meta injection, shadow sync mapping, SKU->UPC fallback
+│   │   └── ReleaseMeta.php           # Dual Block/Classic injection, per-Artist sync targets, SKU->UPC fallback
 │   ├── Rest/
-│   │   └── RestApi.php               # REST endpoints (/network-settings, /search, /link, /taxonomies, /generate)
+│   │   └── RestApi.php               # REST endpoints (/settings, /stores/refresh, /artists/{id}/sync-releases, /search, /link, /taxonomies, /generate)
 │   ├── Support/
+│   │   ├── StoreRegistry.php         # Cached WC store discovery, per-Artist/Release lookup memoization, one-time backfill
 │   │   └── TemplateRenderer.php      # Safe template resolution with theme override support
 │   └── admin/
-│       ├── admin.css                 # Store Cards, accessible combobox, and native <dialog> modal styles
-│       ├── network-settings.js       # Network settings REST form submission + accessible notices
+│       ├── admin.css                 # Store Cards, Artist stores meta box, accessible combobox, and <dialog> modal styles
+│       ├── artist-stores.js          # Artist meta box store refresh + batched Release sync loop
+│       ├── site-settings.js          # Visual Product Page Blueprint drag-and-drop & live preview
 │       └── product-linker.js         # Zero-CDN Store Cards, live search combobox, and Create Product modal
 ├── templates/                        # Overridable via theme/mds-woocommerce-integration/*.php
 └── tests/
-    └── settings-tab.php              # Standalone PHP test for NetworkSettings & RestApi
+    └── store-registry.php            # Standalone PHP test for StoreRegistry, per-Artist sync, security, and backfill
 ```
 
 ---
@@ -71,8 +75,9 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 
 | Method | Route | Permission / Access | Handler | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/network-settings` | `manage_network_options` | `RestApi::save_network_settings()` | Validates and stores integrated multisite store IDs in `mds_rm_wc_integrated_sites`. |
 | `POST` | `/settings` | `manage_options` | `RestApi::save_site_settings()` | Validates and stores per-site single-product injection settings (`mds_wc_product_injection`). |
+| `POST` | `/stores/refresh` | `edit_posts` | `RestApi::refresh_stores()` | Flushes `mds_wc_network_stores` transient and returns auto-detected WooCommerce stores. |
+| `POST` | `/artists/{id}/sync-releases` | `edit_post` (Hub only) | `RestApi::sync_artist_releases()` | Batched sync (10 releases/request) of an Artist and their Releases to assigned stores. |
 | `GET` | `/search` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::search_products()` | Live search of WooCommerce products (`publish`, `draft`, `pending`, `private`) on an integrated store. |
 | `POST` | `/link` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::link_product()` | Links an existing spoke product to `_mds_linked_products` and triggers `MDS_RM_Sync::broadcast_to_spokes()`. |
 | `DELETE` | `/link` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::unlink_product()` | Removes a store's link from `_mds_linked_products` and broadcasts to spokes. |
@@ -88,10 +93,9 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 - `apply_filters( 'mds_wc_injectable_blocks', array $blocks )` — Filters the auto-discovered `mds-release-manager` category blocks (Core + Bandcamp + extensions + Custom Shortcode) available in the **Releases -> Settings -> WooCommerce Integration** block picker.
 
 ### Consumed `mds-release-manager` Hooks
-- `mds_rm_network_settings_fields` (filter) — Legacy fallback when `MDS_RM_Network_Admin::extension_tabs()` is absent.
-- `mds_rm_network_settings_tabs` (filter) — Registers the `woocommerce` Network Settings tab.
-- `mds_rm_register_custom_meta_boxes` (action) — Registers the `mds_wc_settings` meta box on `release` posts.
-- `mds_rm_sync_target_sites` (filter) — Merges `Plugin::get_integrated_sites()` (`mds_rm_wc_integrated_sites` + legacy `mds_rm_woo_sites`).
+- `mds_rm_register_custom_meta_boxes` (action) — Registers `mds_wc_artist_stores` on Hub `artist` posts and `mds_wc_settings` on Hub `release` posts.
+- `mds_rm_save_custom_meta` (action) — Persists `_mds_wc_target_stores` on Hub `artist` posts and requests cache purges for changed stores.
+- `mds_rm_sync_target_sites` (filter, 3 args) — Scopes Artist and Release broadcasts strictly to the Artist's assigned `_mds_wc_target_stores` via `StoreRegistry` (memoized per request).
 - `mds_rm_after_shadow_meta_sync` (action) — Maps `_mds_linked_products[$site_id]` to `_mds_local_product_id` on shadow posts.
 - `mds_rm_release_meta_context_upc` (filter) — Uses numeric WooCommerce product SKU as fallback UPC.
 - `mds_rm_after_buy_now_field` (action) — Renders `#mds_use_linked_product_btn` next to the Multi-Format Buy Now repeater (`#mds_buy_now_links_wrapper`); clicking appends a row using the `all` `release_media_format` term (auto-seeded on the Hub with icon `fas fa-boxes-stacked`), the WooCommerce store name, and the linked published product permalink.
@@ -107,7 +111,10 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 
 | Key | Scope | Description |
 | :--- | :--- | :--- |
-| `mds_rm_wc_integrated_sites` | Network Site Option (`wp_sitemeta`) | Array of integer multisite blog IDs enabled for WooCommerce linking. |
+| `_mds_wc_target_stores` | Post Meta (`artist`) | Array of assigned active WooCommerce store blog IDs (replaces network-wide store selection). |
+| `mds_wc_network_stores` | Network Transient (`wp_sitemeta`) | 1-hour cache of auto-detected active WooCommerce sites (`site_id`, `site_name`, `site_url`). |
+| `mds_wc_artist_stores_migrated` | Site Option (Hub `wp_options`) | Marker (`'1'`) set once the one-time legacy backfill from `mds_rm_wc_integrated_sites` completes. |
+| `mds_rm_wc_integrated_sites` | Network Site Option (`wp_sitemeta`) | Legacy network store ID list (retained non-destructively for one-time Artist backfill). |
 | `mds_rm_woo_sites` | Network Site Option / Option | Legacy site ID list merged by `Plugin::get_integrated_sites()`. |
 | `mds_rm_woo_injection` | Theme Mod | Legacy Release Meta placement fallback synced with `mds_wc_product_injection[release_meta_placement]`. |
 | `mds_wc_product_injection` | Site Option (`wp_options`) | Per-site single-product injection settings (`release_meta_placement`, `release_links_placement`, `hide_buy_now`, `custom_placement`, `custom_content`) managed in **Releases -> Settings -> WooCommerce Integration** for both Block Themes (`render_block`) and Classic WooCommerce themes. |
