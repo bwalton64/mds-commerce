@@ -1,5 +1,6 @@
 <wpml-config>
 	<admin-texts>
 		<key name="mds_rm_wc_integrated_sites" />
+		<key name="mds_wc_product_injection" />
 	</admin-texts>
 </wpml-config>

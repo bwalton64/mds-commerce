@@ -4,8 +4,8 @@
   "description": "MDS WooCommerce Integration plugin for WordPress.",
   "license": "GPL-2.0-or-later",
   "scripts": {
-    "build": "wp-scripts build src/admin/network-settings.js src/admin/product-linker.js src/admin/admin.css",
-    "start": "wp-scripts start src/admin/network-settings.js src/admin/product-linker.js src/admin/admin.css",
+    "build": "wp-scripts build src/admin/network-settings.js src/admin/site-settings.js src/admin/product-linker.js src/admin/admin.css",
+    "start": "wp-scripts start src/admin/network-settings.js src/admin/site-settings.js src/admin/product-linker.js src/admin/admin.css",
     "lint:js": "wp-scripts lint-js src",
     "lint:css": "wp-scripts lint-style src",
     "format": "wp-scripts format src"

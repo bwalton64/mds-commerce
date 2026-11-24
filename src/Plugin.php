@@ -13,6 +13,7 @@ namespace MDS\WooCommerce;
 use MDS\WooCommerce\Admin\Assets;
 use MDS\WooCommerce\Admin\MetaBoxes;
 use MDS\WooCommerce\Admin\NetworkSettings;
+use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Integration\ReleaseMeta;
 use MDS\WooCommerce\Rest\RestApi;
 
@@ -39,6 +40,7 @@ final class Plugin {
 		add_action( 'rest_api_init', array( RestApi::class, 'register_routes' ) );
 
 		NetworkSettings::register();
+		SiteSettings::register();
 	}
 
 	/**

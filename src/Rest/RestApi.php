@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace MDS\WooCommerce\Rest;
 
+use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Plugin;
 use WP_Error;
 use WP_Post;
@@ -138,6 +139,43 @@ final class RestApi {
 				'permission_callback' => static function (): bool {
 					return current_user_can( 'manage_network_options' );
 				},
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/settings',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'save_site_settings' ),
+				'permission_callback' => static function (): bool {
+					return current_user_can( 'manage_options' );
+				},
+			)
+		);
+	}
+
+	/**
+	 * Save per-site WooCommerce product injection settings.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response REST response.
+	 */
+	public static function save_site_settings( WP_REST_Request $request ): WP_REST_Response {
+		$params    = $request->get_json_params();
+		$raw       = is_array( $params ) ? $params : $request->get_body_params();
+		$sanitized = SiteSettings::sanitize_settings( $raw );
+
+		update_option( SiteSettings::OPTION_KEY, $sanitized, false );
+		set_theme_mod( 'mds_rm_woo_injection', $sanitized['release_meta_placement'] );
+
+		return rest_ensure_response(
+			array(
+				'success'  => true,
+				'settings' => $sanitized,
+				'message'  => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
 			)
 		);
 	}

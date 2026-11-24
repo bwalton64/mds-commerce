@@ -17,7 +17,7 @@ MDS WooCommerce Integration connects MDS Release Manager with WooCommerce stores
 * Configure which WooCommerce sites participate in product linking from the Release Manager Network Settings tab.
 * Search existing WooCommerce products (published or draft) and link or unlink them directly from Store Cards in the Release editor.
 * Seed new **Draft** WooCommerce products from a compact modal pre-filled with the Release's title, description, UPC/SKU, and featured artwork—plus optional short description, price, categories, and tags—without overwriting Store Admin edits later.
-* Automatically broadcast product links during hub-and-spoke sync and inject MDS Release Meta output on single WooCommerce product pages.
+* Automatically broadcast product links during hub-and-spoke sync and inject Release Meta, Release Links, or custom shortcodes/blocks on single WooCommerce product pages (configured per-site under **Releases -> Settings -> WooCommerce Integration**, supporting both Block Themes and Classic WooCommerce themes).
 
 == Installation ==
 

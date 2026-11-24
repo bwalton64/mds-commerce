@@ -43,6 +43,10 @@ final class Assets {
 			self::enqueue_network_settings_script();
 		}
 
+		if ( 'release_page_mds-release-settings' === $screen->id ) {
+			self::enqueue_site_settings_script();
+		}
+
 		if ( 'release' === $screen->post_type ) {
 			self::enqueue_product_linker_script();
 		}
@@ -50,6 +54,7 @@ final class Assets {
 		if (
 			'release' === $screen->post_type
 			|| 'settings_page_mds-release-network-settings-network' === $screen->id
+			|| 'release_page_mds-release-settings' === $screen->id
 		) {
 			self::enqueue_admin_styles();
 		}
@@ -135,6 +140,61 @@ final class Assets {
 		wp_add_inline_script(
 			$handle,
 			'window.mdsWcNetworkSettings = ' . wp_json_encode( $config ) . ';',
+			'before'
+		);
+	}
+
+	/**
+	 * Enqueue the per-site settings script for Releases -> Settings -> WooCommerce Integration.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @return void
+	 */
+	private static function enqueue_site_settings_script(): void {
+		$handle = 'mds_wc_site_settings';
+		$asset  = self::resolve_asset(
+			'site-settings',
+			'src/admin/site-settings.js',
+			array( 'wp-a11y' ),
+			'js'
+		);
+
+		wp_register_script(
+			$handle,
+			$asset['url'],
+			$asset['dependencies'],
+			$asset['version'],
+			true
+		);
+		wp_enqueue_script( $handle );
+		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
+
+		$config = array(
+			'url'          => esc_url_raw( rest_url( 'mds-wc/v1/settings' ) ),
+			'nonce'        => wp_create_nonce( 'wp_rest' ),
+			'previewNonce' => wp_create_nonce( SiteSettings::PREVIEW_NONCE_ACTION ),
+			'slotOrder'    => array_keys( SiteSettings::get_active_slots() ),
+			'slotLabels'   => SiteSettings::get_placement_choices(),
+			'messages'     => array(
+				'save'           => __( 'Save Settings', 'mds-woocommerce-integration' ),
+				'saving'         => __( 'Saving…', 'mds-woocommerce-integration' ),
+				'saved'          => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
+				'saveError'      => __( 'Unable to save WooCommerce integration settings.', 'mds-woocommerce-integration' ),
+				'releaseMeta'    => __( 'Release Meta', 'mds-woocommerce-integration' ),
+				'releaseLinks'   => __( 'Release Links', 'mds-woocommerce-integration' ),
+				'customContent'  => __( 'Custom Shortcode / Block', 'mds-woocommerce-integration' ),
+				'moveUp'         => __( 'Move up', 'mds-woocommerce-integration' ),
+				'moveDown'       => __( 'Move down', 'mds-woocommerce-integration' ),
+				/* translators: 1: Component name, 2: Placement slot name. */
+				'movedTo'        => __( 'Moved %1$s to %2$s.', 'mds-woocommerce-integration' ),
+				'previewUpdated' => __( 'Live preview updated.', 'mds-woocommerce-integration' ),
+			),
+		);
+
+		wp_add_inline_script(
+			$handle,
+			'window.mdsWcSiteSettings = ' . wp_json_encode( $config ) . ';',
 			'before'
 		);
 	}

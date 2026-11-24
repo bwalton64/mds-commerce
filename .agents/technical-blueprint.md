@@ -26,7 +26,8 @@ flowchart TD
     Plugin --> Assets["Admin\\Assets (admin_enqueue_scripts)"]
     Plugin --> MetaBoxes["Admin\\MetaBoxes (mds_rm_register_custom_meta_boxes)"]
     Plugin --> NetSettings["Admin\\NetworkSettings (mds_rm_network_settings_*)"]
-    Plugin --> ReleaseMeta["Integration\\ReleaseMeta (init)"]
+    Plugin --> SiteSettings["Admin\\SiteSettings (mds_rm_site_settings_tabs)"]
+    Plugin --> ReleaseMeta["Integration\\ReleaseMeta (init / render_block)"]
     Plugin --> RestApi["Rest\\RestApi (rest_api_init)"]
     MetaBoxes --> Renderer["Support\\TemplateRenderer"]
     NetSettings --> Renderer
@@ -71,6 +72,7 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 | Method | Route | Permission / Access | Handler | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/network-settings` | `manage_network_options` | `RestApi::save_network_settings()` | Validates and stores integrated multisite store IDs in `mds_rm_wc_integrated_sites`. |
+| `POST` | `/settings` | `manage_options` | `RestApi::save_site_settings()` | Validates and stores per-site single-product injection settings (`mds_wc_product_injection`). |
 | `GET` | `/search` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::search_products()` | Live search of WooCommerce products (`publish`, `draft`, `pending`, `private`) on an integrated store. |
 | `POST` | `/link` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::link_product()` | Links an existing spoke product to `_mds_linked_products` and triggers `MDS_RM_Sync::broadcast_to_spokes()`. |
 | `DELETE` | `/link` | `edit_posts` + `Plugin::user_can_manage_spoke_product()` | `RestApi::unlink_product()` | Removes a store's link from `_mds_linked_products` and broadcasts to spokes. |
@@ -104,7 +106,8 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 | :--- | :--- | :--- |
 | `mds_rm_wc_integrated_sites` | Network Site Option (`wp_sitemeta`) | Array of integer multisite blog IDs enabled for WooCommerce linking. |
 | `mds_rm_woo_sites` | Network Site Option / Option | Legacy site ID list merged by `Plugin::get_integrated_sites()`. |
-| `mds_rm_woo_injection` | Theme Mod | Controls hook/priority (or `disabled`) for injecting `MDS_RM_Release_Meta::render()` on product pages. |
+| `mds_rm_woo_injection` | Theme Mod | Legacy Release Meta placement fallback synced with `mds_wc_product_injection[release_meta_placement]`. |
+| `mds_wc_product_injection` | Site Option (`wp_options`) | Per-site single-product injection settings (`release_meta_placement`, `release_links_placement`, `hide_buy_now`, `custom_placement`, `custom_content`) managed in **Releases -> Settings -> WooCommerce Integration** for both Block Themes (`render_block`) and Classic WooCommerce themes. |
 | `_mds_linked_products` | Post Meta (`release`) | Associative array `[ store_id => product_id ]` mapping a release to linked WooCommerce products. |
 | `_mds_local_product_id` | Post Meta (`release` / shadow) | Local WooCommerce product ID for the current site. |
 | `_mds_wc_seeded_from_release`, `_mds_wc_seeded_by`, `_mds_wc_seeded_gmt` | Post Meta (`product` on spoke) | Audit metadata recording which Hub release and user seeded the product. |
