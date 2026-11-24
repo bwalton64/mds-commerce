@@ -119,15 +119,15 @@ final class ReleaseMeta {
 	 * @return void
 	 */
 	public static function register(): void {
-		if ( ! class_exists( '\MDS_RM_Release_Meta' ) || ! Plugin::is_active() ) {
+		if ( ! defined( 'MDS_RM_API_VERSION' ) || ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || ! Plugin::is_active() ) {
 			return;
 		}
 
 		add_filter( 'mds_rm_sync_target_sites', array( self::class, 'sync_targets' ), 10, 3 );
-		add_action( 'mds_rm_after_shadow_meta_sync', array( self::class, 'map_product' ), 10, 4 );
+		add_action( 'mds_rm_after_shadow_sync', array( self::class, 'map_product' ), 10, 5 );
 		add_filter( 'mds_rm_release_meta_context_upc', array( self::class, 'context_upc' ), 10, 2 );
 		add_action( 'mds_rm_after_buy_now_field', array( self::class, 'buy_now_button' ) );
-		add_action( 'init', array( self::class, 'ensure_all_media_format' ), 20 );
+		add_filter( 'mds_rm_default_media_formats', array( self::class, 'register_default_media_formats' ) );
 
 		// Register product injections on `wp` so all blocks (Core + Bandcamp + extensions) are registered.
 		add_action( 'wp', array( self::class, 'register_product_injections' ) );
@@ -210,16 +210,21 @@ final class ReleaseMeta {
 	/**
 	 * Map the linked local WooCommerce product ID onto a synced shadow release post.
 	 *
-	 * @since 1.0.1
+	 * @since 2.0.0
 	 *
 	 * @param int                  $shadow_id Shadow post ID on the spoke site.
 	 * @param int                  $site_id   Spoke site ID.
-	 * @param int                  $source_id Source release post ID on the hub site.
+	 * @param int                  $source_id Source post ID on the hub site.
+	 * @param string               $post_type Post type (`release` or `artist`).
 	 * @param array<string, mixed> $meta      Source post meta array.
 	 * @return void
 	 */
-	public static function map_product( int $shadow_id, int $site_id, int $source_id, array $meta ): void {
+	public static function map_product( int $shadow_id, int $site_id, int $source_id, string $post_type, array $meta ): void {
 		unset( $source_id );
+
+		if ( 'release' !== $post_type ) {
+			return;
+		}
 
 		$linked = isset( $meta['_mds_linked_products'][0] )
 			? maybe_unserialize( $meta['_mds_linked_products'][0] )
@@ -301,9 +306,9 @@ final class ReleaseMeta {
 		$block_name = isset( $item['block'] ) ? (string) $item['block'] : '';
 		$markup     = '';
 
-		if ( 'mds-rm/release-meta' === $block_name && class_exists( '\MDS_RM_Release_Meta' ) ) {
-			$markup = (string) \MDS_RM_Release_Meta::render( array(), $post_id );
-		} elseif ( 'mds-rm/release-links' === $block_name && class_exists( '\MDS_RM_Release_Links' ) ) {
+		if ( 'mds-rm/release-meta' === $block_name && class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
+			$markup = \MDS\ReleaseManager\Api\ExtensionApi::render_release_meta( array(), $post_id );
+		} elseif ( 'mds-rm/release-links' === $block_name && class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
 			$attributes = array();
 			if ( ! empty( $item['hide_buy_now'] ) ) {
 				$attributes['items'] = array(
@@ -313,7 +318,7 @@ final class ReleaseMeta {
 					),
 				);
 			}
-			$markup = (string) \MDS_RM_Release_Links::render( $attributes, $post_id );
+			$markup = \MDS\ReleaseManager\Api\ExtensionApi::render_release_links( $attributes, $post_id );
 		} elseif ( SiteSettings::CUSTOM_BLOCK_KEY === $block_name ) {
 			$content = isset( $item['content'] ) && is_string( $item['content'] ) ? $item['content'] : '';
 			if ( '' !== $content ) {
@@ -347,25 +352,14 @@ final class ReleaseMeta {
 	 * @return string Rendered block HTML.
 	 */
 	private static function render_dynamic_mds_block( string $block_name, int $product_id ): string {
-		$release      = class_exists( '\MDS_RM_Release_Meta' ) ? \MDS_RM_Release_Meta::resolve_post( '', $product_id ) : null;
+		$release      = class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class )
+			? \MDS\ReleaseManager\Api\ExtensionApi::resolve_post( '', $product_id )
+			: null;
 		$context_id   = $release ? (int) $release->ID : $product_id;
 		$context_type = $release ? 'release' : 'product';
-		$attrs        = array();
-
-		if ( $release ) {
-			$attrs['releaseId'] = (int) $release->ID;
-
-			if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
-				$bc_album_id = (string) get_post_meta( $release->ID, 'bandcamp_album_id', true );
-				$bc_url      = (string) get_post_meta( $release->ID, 'bandcamp_album_url', true );
-				if ( '' !== $bc_album_id ) {
-					$attrs['albumID'] = $bc_album_id;
-				}
-				if ( '' !== $bc_url ) {
-					$attrs['url'] = $bc_url;
-				}
-			}
-		}
+		$attrs        = $release && class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class )
+			? \MDS\ReleaseManager\Api\ExtensionApi::resolve_dynamic_block_attrs( $block_name, $release )
+			: array();
 
 		$block_instance = new WP_Block(
 			array(
@@ -473,47 +467,21 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Ensure the "All" release_media_format term exists on the Hub with its configured icon.
+	 * Registers the "All" default media format with Core's hash-seeded registry.
 	 *
-	 * Used when inserting a WooCommerce linked store row into the Multi-Format Buy Now repeater.
+	 * @since 2.0.0
 	 *
-	 * @since 1.0.1
-	 *
-	 * @return void
+	 * @param array<string, array{label: string, icon: string}> $formats Default media format registry.
+	 * @return array<string, array{label: string, icon: string}> Updated registry.
 	 */
-	public static function ensure_all_media_format(): void {
-		if ( ! is_admin() || ! taxonomy_exists( 'release_media_format' ) ) {
-			return;
+	public static function register_default_media_formats( array $formats ): array {
+		if ( ! isset( $formats['all'] ) ) {
+			$formats['all'] = array(
+				'label' => __( 'All', 'mds-woocommerce-integration' ),
+				'icon'  => 'fas fa-boxes-stacked',
+			);
 		}
-
-		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'is_hub' ) && ! \MDS_RM_Sync::is_hub() ) {
-			return;
-		}
-
-		$icon_meta_key = class_exists( '\MDS_RM_Release_Model' ) && defined( '\MDS_RM_Release_Model::MEDIA_FORMAT_ICON_META_KEY' )
-			? \MDS_RM_Release_Model::MEDIA_FORMAT_ICON_META_KEY
-			: '_mds_media_format_icon';
-
-		$existing = get_term_by( 'slug', 'all', 'release_media_format' );
-		if ( $existing && ! is_wp_error( $existing ) ) {
-			if ( '' === (string) get_term_meta( (int) $existing->term_id, $icon_meta_key, true ) ) {
-				update_term_meta( (int) $existing->term_id, $icon_meta_key, 'fas fa-boxes-stacked' );
-			}
-			return;
-		}
-
-		$inserted = wp_insert_term(
-			__( 'All', 'mds-woocommerce-integration' ),
-			'release_media_format',
-			array(
-				'slug'        => 'all',
-				'description' => __( 'All supported media formats.', 'mds-woocommerce-integration' ),
-			)
-		);
-
-		if ( ! is_wp_error( $inserted ) && ! empty( $inserted['term_id'] ) ) {
-			update_term_meta( (int) $inserted['term_id'], $icon_meta_key, 'fas fa-boxes-stacked' );
-		}
+		return $formats;
 	}
 
 	/**

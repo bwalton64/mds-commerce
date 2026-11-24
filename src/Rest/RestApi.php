@@ -163,7 +163,7 @@ final class RestApi {
 				'callback'            => array( self::class, 'sync_artist_releases' ),
 				'permission_callback' => static function ( WP_REST_Request $request ): bool {
 					$artist_id = absint( $request->get_param( 'id' ) );
-					$is_hub    = ! class_exists( '\MDS_RM_Sync' ) || ! method_exists( '\MDS_RM_Sync', 'is_hub' ) || \MDS_RM_Sync::is_hub();
+					$is_hub    = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
 					return $artist_id > 0 && $is_hub && current_user_can( 'edit_post', $artist_id );
 				},
 			)
@@ -184,16 +184,6 @@ final class RestApi {
 		$sanitized = SiteSettings::sanitize_settings( $raw );
 
 		update_option( SiteSettings::OPTION_KEY, $sanitized, false );
-
-		// Keep legacy theme_mod roughly synchronized with the first Release Meta item.
-		$legacy_meta = 'disabled';
-		foreach ( $sanitized['items'] as $item ) {
-			if ( 'mds-rm/release-meta' === $item['block'] && $item['enabled'] ) {
-				$legacy_meta = $item['placement'];
-				break;
-			}
-		}
-		set_theme_mod( 'mds_rm_woo_injection', $legacy_meta );
 		Plugin::request_cache_purge( 'woocommerce_settings' );
 
 		return rest_ensure_response(
@@ -254,7 +244,7 @@ final class RestApi {
 			);
 		}
 
-		if ( ! class_exists( '\MDS_RM_Sync' ) || ! method_exists( '\MDS_RM_Sync', 'broadcast_batch_to_spokes' ) ) {
+		if ( ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
 			return new WP_Error(
 				'sync_unavailable',
 				__( 'MDS Release Manager synchronization is unavailable.', 'mds-woocommerce-integration' ),
@@ -306,7 +296,7 @@ final class RestApi {
 		$error_count = 0;
 
 		if ( ! empty( $items ) ) {
-			$results = \MDS_RM_Sync::broadcast_batch_to_spokes( $items );
+			$results = \MDS\ReleaseManager\Api\ExtensionApi::broadcast_batch_to_spokes( $items );
 			foreach ( $items as $item ) {
 				$key    = $item['post_type'] . ':' . $item['id'];
 				$result = $results[ $key ] ?? null;
@@ -941,14 +931,12 @@ final class RestApi {
 
 		$virtual_attachment_id = 0;
 
-		if ( class_exists( '\MDS_RM_Virtual_Media' ) && method_exists( '\MDS_RM_Virtual_Media', 'get_or_create_virtual_attachment' ) ) {
-			$virtual_attachment_id = (int) \MDS_RM_Virtual_Media::get_or_create_virtual_attachment(
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
+			$virtual_attachment_id = \MDS\ReleaseManager\Api\ExtensionApi::get_or_create_virtual_attachment(
 				$hub_img_url,
 				$hub_thumb_id,
 				$media_info
 			);
-		} elseif ( function_exists( 'mds_rm_get_or_create_virtual_attachment' ) ) {
-			$virtual_attachment_id = (int) mds_rm_get_or_create_virtual_attachment( $hub_img_url, $hub_thumb_id );
 		}
 
 		if ( $virtual_attachment_id > 0 ) {
@@ -997,8 +985,8 @@ final class RestApi {
 	 * @return int Hub blog ID.
 	 */
 	private static function get_hub_blog_id(): int {
-		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'hub_id' ) ) {
-			return (int) \MDS_RM_Sync::hub_id();
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
+			return \MDS\ReleaseManager\Api\ExtensionApi::hub_id();
 		}
 
 		return is_multisite() ? (int) get_main_site_id() : (int) get_current_blog_id();
@@ -1074,11 +1062,9 @@ final class RestApi {
 			return;
 		}
 
-		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'broadcast_to_spokes' ) ) {
-			\MDS_RM_Sync::broadcast_to_spokes( $release_id, 'release' );
-			if ( method_exists( '\MDS_RM_Sync', 'purge_cache' ) ) {
-				\MDS_RM_Sync::purge_cache();
-			}
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
+			\MDS\ReleaseManager\Api\ExtensionApi::broadcast_to_spokes( $release_id, 'release' );
+			\MDS\ReleaseManager\Api\ExtensionApi::purge_cache( 'woocommerce_link' );
 		}
 	}
 

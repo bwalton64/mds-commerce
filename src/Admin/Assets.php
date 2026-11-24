@@ -110,7 +110,7 @@ final class Assets {
 	 * @return void
 	 */
 	private static function enqueue_artist_stores_script(): void {
-		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'is_hub' ) && ! \MDS_RM_Sync::is_hub() ) {
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && ! \MDS\ReleaseManager\Api\ExtensionApi::is_hub() ) {
 			return;
 		}
 

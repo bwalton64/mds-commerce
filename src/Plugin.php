@@ -37,7 +37,7 @@ final class Plugin {
 		add_action( 'init', array( ReleaseMeta::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue' ) );
 		add_action( 'mds_rm_register_custom_meta_boxes', array( MetaBoxes::class, 'register' ) );
-		add_action( 'mds_rm_save_custom_meta', array( MetaBoxes::class, 'save_artist_stores' ), 10, 2 );
+		add_action( 'mds_rm_save_artist_meta', array( MetaBoxes::class, 'save_artist_stores_hook' ), 10, 2 );
 		add_action( 'rest_api_init', array( RestApi::class, 'register_routes' ) );
 		add_action( 'mds_rm_after_cache_purge', array( self::class, 'on_after_cache_purge' ), 10, 4 );
 

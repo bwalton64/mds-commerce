@@ -5,6 +5,7 @@
  * Version: 1.0.1
  * Requires at least: 7.0
  * Requires PHP: 8.0
+ * Requires Plugins: mds-release-manager
  * Author: Musty Dungeon Studios
  * Text Domain: mds-woocommerce-integration
  *
@@ -24,7 +25,7 @@ $mds_wc_autoloader = MDS_WC_PATH . 'vendor/autoload.php';
 if ( file_exists( $mds_wc_autoloader ) ) {
 	require_once $mds_wc_autoloader;
 	require_once MDS_WC_PATH . 'includes/helpers.php';
-	add_action( 'plugins_loaded', array( \MDS\WooCommerce\Plugin::class, 'init' ) );
+	add_action( 'mds_rm_loaded', array( \MDS\WooCommerce\Plugin::class, 'init' ) );
 } else {
 	add_action(
 		'admin_notices',

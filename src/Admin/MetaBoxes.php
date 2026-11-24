@@ -39,7 +39,7 @@ final class MetaBoxes {
 			return;
 		}
 
-		if ( class_exists( '\MDS_RM_Sync' ) && method_exists( '\MDS_RM_Sync', 'is_hub' ) && ! \MDS_RM_Sync::is_hub() ) {
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && ! \MDS\ReleaseManager\Api\ExtensionApi::is_hub() ) {
 			return;
 		}
 
@@ -94,7 +94,22 @@ final class MetaBoxes {
 	}
 
 	/**
-	 * Persist the Artist's assigned WooCommerce target stores on `mds_rm_save_custom_meta`.
+	 * Hook callback for `mds_rm_save_artist_meta` delegating to `save_artist_stores()`.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param int     $post_id Artist post ID.
+	 * @param WP_Post $post    Artist post object.
+	 * @return void
+	 */
+	public static function save_artist_stores_hook( int $post_id, WP_Post $post ): void {
+		unset( $post );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce is verified inside save_artist_stores().
+		self::save_artist_stores( $post_id, $_POST );
+	}
+
+	/**
+	 * Persist the Artist's assigned WooCommerce target stores.
 	 *
 	 * @since 1.1.0
 	 *
