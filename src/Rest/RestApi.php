@@ -169,7 +169,17 @@ final class RestApi {
 		$sanitized = SiteSettings::sanitize_settings( $raw );
 
 		update_option( SiteSettings::OPTION_KEY, $sanitized, false );
-		set_theme_mod( 'mds_rm_woo_injection', $sanitized['release_meta_placement'] );
+
+		// Keep legacy theme_mod roughly synchronized with the first Release Meta item.
+		$legacy_meta = 'disabled';
+		foreach ( $sanitized['items'] as $item ) {
+			if ( 'mds-rm/release-meta' === $item['block'] && $item['enabled'] ) {
+				$legacy_meta = $item['placement'];
+				break;
+			}
+		}
+		set_theme_mod( 'mds_rm_woo_injection', $legacy_meta );
+		Plugin::request_cache_purge( 'woocommerce_settings' );
 
 		return rest_ensure_response(
 			array(
@@ -211,7 +221,15 @@ final class RestApi {
 			$wc_sites        = array_values( array_intersect( array_unique( $requested_sites ), $available_sites ) );
 		}
 
+		$previous_sites = array_map( 'absint', (array) get_site_option( 'mds_rm_wc_integrated_sites', array() ) );
 		update_site_option( 'mds_rm_wc_integrated_sites', $wc_sites );
+
+		$affected_sites = array_values( array_unique( array_merge( array_diff( $previous_sites, $wc_sites ), array_diff( $wc_sites, $previous_sites ) ) ) );
+		foreach ( $affected_sites as $affected_site_id ) {
+			if ( $affected_site_id > 0 ) {
+				Plugin::request_cache_purge( 'woocommerce_network_settings', $affected_site_id );
+			}
+		}
 
 		return rest_ensure_response( array( 'success' => true ) );
 	}
@@ -270,6 +288,7 @@ final class RestApi {
 
 		self::save_product_link( $release_id, $store_id, $product_id );
 		self::broadcast_release_link( $release_id );
+		Plugin::request_cache_purge( 'woocommerce_link', $store_id );
 
 		return rest_ensure_response(
 			array(
@@ -315,6 +334,7 @@ final class RestApi {
 		}
 
 		self::broadcast_release_link( $release_id );
+		Plugin::request_cache_purge( 'woocommerce_unlink', $store_id );
 
 		return rest_ensure_response( array( 'success' => true ) );
 	}
@@ -504,6 +524,7 @@ final class RestApi {
 
 		self::save_product_link( $release_id, $store_id, $product_id );
 		self::broadcast_release_link( $release_id );
+		Plugin::request_cache_purge( 'woocommerce_generate', $store_id );
 
 		return rest_ensure_response(
 			array(
@@ -937,6 +958,9 @@ final class RestApi {
 		if ( get_current_blog_id() === $store_id ) {
 			update_post_meta( $release_id, '_mds_local_product_id', $product_id );
 		}
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Invoking MDS Release Manager core cache purge hook.
+		do_action( 'mds_rm_purge_cache', 'woocommerce_link', array( 'blog_id' => $store_id ) );
 	}
 
 	/**

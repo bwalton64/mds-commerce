@@ -85,6 +85,7 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 
 ### Custom Hooks Provided
 - `apply_filters( 'mds_wc_user_can_manage_spoke_product', bool $can_manage, int $release_id, int $store_id )` — Filters delegated Hub-to-Spoke product link/seed permission for Hub Release editors without spoke-site accounts.
+- `apply_filters( 'mds_wc_injectable_blocks', array $blocks )` — Filters the auto-discovered `mds-release-manager` category blocks (Core + Bandcamp + extensions + Custom Shortcode) available in the **Releases -> Settings -> WooCommerce Integration** block picker.
 
 ### Consumed `mds-release-manager` Hooks
 - `mds_rm_network_settings_fields` (filter) — Legacy fallback when `MDS_RM_Network_Admin::extension_tabs()` is absent.
@@ -94,6 +95,8 @@ Primary namespace: `mds-wc/v1` (legacy `mds-woo/v1` alias routes remain register
 - `mds_rm_after_shadow_meta_sync` (action) — Maps `_mds_linked_products[$site_id]` to `_mds_local_product_id` on shadow posts.
 - `mds_rm_release_meta_context_upc` (filter) — Uses numeric WooCommerce product SKU as fallback UPC.
 - `mds_rm_after_buy_now_field` (action) — Renders `#mds_use_linked_product_btn` next to the Multi-Format Buy Now repeater (`#mds_buy_now_links_wrapper`); clicking appends a row using the `all` `release_media_format` term (auto-seeded on the Hub with icon `fas fa-boxes-stacked`), the WooCommerce store name, and the linked published product permalink.
+- `mds_rm_purge_cache` (action, invoked via `Plugin::request_cache_purge()`) — Requests coalesced, multisite-aware cache purges through `MDS_RM_Cache` on product injection settings save (`woocommerce_settings`), network store changes (`woocommerce_network_settings` per changed `blog_id`), and product link/unlink/generate actions (`woocommerce_link`, `woocommerce_unlink`, `woocommerce_generate` targeting `$store_id`).
+- `mds_rm_after_cache_purge` (action) — Clears WooCommerce product transients (`wc_delete_product_transients()`) after `manual` or `woocommerce_settings` cache purges.
 
 ### Consumed WooCommerce Hooks
 - `woocommerce_single_product_summary` (priorities `5`, `15`, `25`, `45`) and `woocommerce_after_single_product_summary` (priority `10`), controlled by the `mds_rm_woo_injection` theme mod.

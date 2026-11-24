@@ -13,25 +13,28 @@ namespace MDS\WooCommerce\Integration;
 use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Plugin;
 use WC_Product;
+use WP_Block;
+use WP_Block_Type_Registry;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Integrates MDS Release Manager metadata/links rendering and shadow-sync hooks with WooCommerce.
+ * Integrates MDS Release Manager blocks, metadata rendering, and shadow-sync hooks with WooCommerce.
  *
- * Supports both Classic WooCommerce template hooks and WordPress Block Theme (`render_block`) anchors.
+ * Supports both Classic WooCommerce template hooks and WordPress Block Theme (`render_block`) anchors
+ * for any registered block in the `mds-release-manager` category (including Bandcamp blocks).
  *
  * @since 1.0.1
  */
 final class ReleaseMeta {
 
 	/**
-	 * Tracks which components have already been injected during the current request.
+	 * Tracks which item IDs have already been injected during the current request.
 	 *
 	 * @since 1.0.1
 	 * @var array<string, bool>
 	 */
-	private static array $rendered_components = array();
+	private static array $rendered_items = array();
 
 	/**
 	 * Classic WooCommerce action/priority map keyed by placement identifier.
@@ -40,12 +43,15 @@ final class ReleaseMeta {
 	 * @var array<string, array{0: string, 1: int}>
 	 */
 	private const CLASSIC_PLACEMENTS = array(
-		'woocommerce_single_product_summary:5'        => array( 'woocommerce_single_product_summary', 5 ),
-		'woocommerce_single_product_summary:15'       => array( 'woocommerce_single_product_summary', 15 ),
-		'woocommerce_single_product_summary:25'       => array( 'woocommerce_single_product_summary', 25 ),
-		'woocommerce_single_product_summary:45'       => array( 'woocommerce_single_product_summary', 45 ),
-		'woocommerce_after_single_product_summary:10' => array( 'woocommerce_after_single_product_summary', 10 ),
-		'woocommerce_after_single_product_summary:15' => array( 'woocommerce_after_single_product_summary', 15 ),
+		'woocommerce_single_product_summary:5'         => array( 'woocommerce_single_product_summary', 5 ),
+		'woocommerce_single_product_summary:6'         => array( 'woocommerce_single_product_summary', 6 ),
+		'woocommerce_single_product_summary:15'        => array( 'woocommerce_single_product_summary', 15 ),
+		'woocommerce_single_product_summary:25'        => array( 'woocommerce_single_product_summary', 25 ),
+		'woocommerce_single_product_summary:45'        => array( 'woocommerce_single_product_summary', 45 ),
+		'woocommerce_after_single_product_summary:10'  => array( 'woocommerce_after_single_product_summary', 10 ),
+		'woocommerce_before_single_product_summary:25' => array( 'woocommerce_before_single_product_summary', 25 ),
+		'woocommerce_after_single_product_summary:12'  => array( 'woocommerce_after_single_product_summary', 12 ),
+		'woocommerce_after_single_product_summary:15'  => array( 'woocommerce_after_single_product_summary', 15 ),
 	);
 
 	/**
@@ -55,36 +61,49 @@ final class ReleaseMeta {
 	 * @var array<string, array{block: string, namespace?: string, position: string}>
 	 */
 	private const BLOCK_PLACEMENTS = array(
-		'woocommerce_single_product_summary:5'        => array(
+		'woocommerce_single_product_summary:5'         => array(
 			'block'     => 'core/post-title',
 			'namespace' => 'woocommerce/product-query/product-title',
 			'position'  => 'before',
 		),
-		'woocommerce_single_product_summary:15'       => array(
+		'woocommerce_single_product_summary:6'         => array(
+			'block'     => 'core/post-title',
+			'namespace' => 'woocommerce/product-query/product-title',
+			'position'  => 'after',
+		),
+		'woocommerce_single_product_summary:15'        => array(
 			'block'    => 'woocommerce/product-price',
 			'position' => 'after',
 		),
-		'woocommerce_single_product_summary:25'       => array(
+		'woocommerce_single_product_summary:25'        => array(
 			'block'     => 'core/post-excerpt',
 			'namespace' => 'woocommerce/product-query/product-summary',
 			'position'  => 'after',
 		),
-		'woocommerce_single_product_summary:45'       => array(
+		'woocommerce_single_product_summary:45'        => array(
 			'block'    => 'woocommerce/add-to-cart-form',
 			'position' => 'after',
 		),
-		'woocommerce_after_single_product_summary:10' => array(
+		'woocommerce_after_single_product_summary:10'  => array(
 			'block'    => 'woocommerce/product-meta',
 			'position' => 'after',
 		),
-		'woocommerce_after_single_product_summary:15' => array(
+		'woocommerce_before_single_product_summary:25' => array(
+			'block'    => 'woocommerce/product-image-gallery',
+			'position' => 'after',
+		),
+		'woocommerce_after_single_product_summary:12'  => array(
+			'block'    => 'woocommerce/product-details',
+			'position' => 'before',
+		),
+		'woocommerce_after_single_product_summary:15'  => array(
 			'block'    => 'woocommerce/product-details',
 			'position' => 'after',
 		),
 	);
 
 	/**
-	 * Register WooCommerce Release Meta & Release Links integration hooks.
+	 * Register WooCommerce Release Meta & dynamic MDS block integration hooks.
 	 *
 	 * @since 1.0.1
 	 *
@@ -101,28 +120,34 @@ final class ReleaseMeta {
 		add_action( 'mds_rm_after_buy_now_field', array( self::class, 'buy_now_button' ) );
 		add_action( 'init', array( self::class, 'ensure_all_media_format' ), 20 );
 
-		self::register_product_injections();
+		// Register product injections on `wp` so all blocks (Core + Bandcamp + extensions) are registered.
+		add_action( 'wp', array( self::class, 'register_product_injections' ) );
 	}
 
 	/**
-	 * Register Classic WooCommerce hooks and Block Theme `render_block` injection for configured slots.
+	 * Register Classic WooCommerce hooks and Block Theme `render_block` injection for configured items.
 	 *
 	 * @since 1.0.1
 	 *
 	 * @return void
 	 */
-	private static function register_product_injections(): void {
+	public static function register_product_injections(): void {
+		if ( is_admin() || ! is_singular( 'product' ) || ! self::is_eligible_store_site() ) {
+			return;
+		}
+
 		$settings = SiteSettings::get_settings();
-		$active   = array(
-			'release_meta'  => $settings['release_meta_placement'],
-			'release_links' => $settings['release_links_placement'],
-			'custom'        => '' !== $settings['custom_content'] ? $settings['custom_placement'] : 'disabled',
-		);
+		$items    = $settings['items'];
 
 		$has_any_enabled = false;
 
-		foreach ( $active as $component => $placement ) {
-			if ( 'disabled' === $placement || ! isset( self::CLASSIC_PLACEMENTS[ $placement ] ) ) {
+		foreach ( $items as $item ) {
+			if ( empty( $item['enabled'] ) ) {
+				continue;
+			}
+
+			$placement = (string) $item['placement'];
+			if ( ! isset( self::CLASSIC_PLACEMENTS[ $placement ] ) ) {
 				continue;
 			}
 
@@ -131,8 +156,8 @@ final class ReleaseMeta {
 
 			add_action(
 				$hook_def[0],
-				static function () use ( $component ): void {
-					self::inject_classic( $component );
+				static function () use ( $item ): void {
+					self::inject_classic_item( $item );
 				},
 				$hook_def[1]
 			);
@@ -231,27 +256,28 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Render a single configured product-page component for a given product post ID.
+	 * Render a single configured injection item for a given WooCommerce product ID.
 	 *
 	 * @since 1.0.1
 	 *
-	 * @param string $component Component key ('release_meta', 'release_links', or 'custom').
-	 * @param int    $post_id   WooCommerce product post ID.
+	 * @param array<string, mixed> $item    Normalized injection item config.
+	 * @param int                  $post_id WooCommerce product post ID.
 	 * @return string Rendered HTML markup, or empty string.
 	 */
-	private static function render_component( string $component, int $post_id ): string {
-		if ( $post_id <= 0 || ! empty( self::$rendered_components[ $component ] ) ) {
+	private static function render_item( array $item, int $post_id ): string {
+		$item_id = isset( $item['id'] ) ? (string) $item['id'] : '';
+		if ( $post_id <= 0 || '' === $item_id || ! empty( self::$rendered_items[ $item_id ] ) ) {
 			return '';
 		}
 
-		$settings = SiteSettings::get_settings();
-		$markup   = '';
+		$block_name = isset( $item['block'] ) ? (string) $item['block'] : '';
+		$markup     = '';
 
-		if ( 'release_meta' === $component && class_exists( '\MDS_RM_Release_Meta' ) ) {
+		if ( 'mds-rm/release-meta' === $block_name && class_exists( '\MDS_RM_Release_Meta' ) ) {
 			$markup = (string) \MDS_RM_Release_Meta::render( array(), $post_id );
-		} elseif ( 'release_links' === $component && class_exists( '\MDS_RM_Release_Links' ) ) {
+		} elseif ( 'mds-rm/release-links' === $block_name && class_exists( '\MDS_RM_Release_Links' ) ) {
 			$attributes = array();
-			if ( ! empty( $settings['hide_buy_now'] ) ) {
+			if ( ! empty( $item['hide_buy_now'] ) ) {
 				$attributes['items'] = array(
 					array(
 						'name'    => '__buy_now',
@@ -260,48 +286,101 @@ final class ReleaseMeta {
 				);
 			}
 			$markup = (string) \MDS_RM_Release_Links::render( $attributes, $post_id );
-		} elseif ( 'custom' === $component && '' !== $settings['custom_content'] ) {
-			$markup = do_shortcode( do_blocks( $settings['custom_content'] ) );
+		} elseif ( SiteSettings::CUSTOM_BLOCK_KEY === $block_name ) {
+			$content = isset( $item['content'] ) && is_string( $item['content'] ) ? $item['content'] : '';
+			if ( '' !== $content ) {
+				$markup = do_shortcode( do_blocks( $content ) );
+			}
+		} elseif ( '' !== $block_name && WP_Block_Type_Registry::get_instance()->is_registered( $block_name ) ) {
+			$markup = self::render_dynamic_mds_block( $block_name, $post_id );
 		}
 
 		if ( '' === trim( $markup ) ) {
 			return '';
 		}
 
-		self::$rendered_components[ $component ] = true;
+		self::$rendered_items[ $item_id ] = true;
+		$slug_class                       = sanitize_html_class( str_replace( array( '/', '_' ), '-', $block_name ) );
 
 		return sprintf(
 			'<div class="mds-wc-injected mds-wc-injected--%1$s">%2$s</div>',
-			esc_attr( str_replace( '_', '-', $component ) ),
+			esc_attr( $slug_class ),
 			$markup
 		);
 	}
 
 	/**
-	 * Output a configured component on a Classic WooCommerce product template hook.
+	 * Render any registered MDS dynamic block (Core, Bandcamp, or other extensions) using resolved Release context.
 	 *
 	 * @since 1.0.1
 	 *
-	 * @param string $component Component key ('release_meta', 'release_links', or 'custom').
+	 * @param string $block_name Registered block name.
+	 * @param int    $product_id WooCommerce product post ID.
+	 * @return string Rendered block HTML.
+	 */
+	private static function render_dynamic_mds_block( string $block_name, int $product_id ): string {
+		$release      = class_exists( '\MDS_RM_Release_Meta' ) ? \MDS_RM_Release_Meta::resolve_post( '', $product_id ) : null;
+		$context_id   = $release ? (int) $release->ID : $product_id;
+		$context_type = $release ? 'release' : 'product';
+		$attrs        = array();
+
+		if ( $release ) {
+			$attrs['releaseId'] = (int) $release->ID;
+
+			if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
+				$bc_album_id = (string) get_post_meta( $release->ID, 'bandcamp_album_id', true );
+				$bc_url      = (string) get_post_meta( $release->ID, 'bandcamp_album_url', true );
+				if ( '' !== $bc_album_id ) {
+					$attrs['albumID'] = $bc_album_id;
+				}
+				if ( '' !== $bc_url ) {
+					$attrs['url'] = $bc_url;
+				}
+			}
+		}
+
+		$block_instance = new WP_Block(
+			array(
+				'blockName'    => $block_name,
+				'attrs'        => $attrs,
+				'innerBlocks'  => array(),
+				'innerHTML'    => '',
+				'innerContent' => array(),
+			),
+			array(
+				'postId'   => $context_id,
+				'postType' => $context_type,
+			)
+		);
+
+		return (string) $block_instance->render();
+	}
+
+	/**
+	 * Output a configured item on a Classic WooCommerce product template hook.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param array<string, mixed> $item Normalized injection item config.
 	 * @return void
 	 */
-	private static function inject_classic( string $component ): void {
+	private static function inject_classic_item( array $item ): void {
 		if ( ! self::is_eligible_store_site() ) {
 			return;
 		}
 
 		global $product;
 		$post_id = $product instanceof WC_Product ? $product->get_id() : (int) get_the_ID();
-		$markup  = self::render_component( $component, $post_id );
+		$markup  = self::render_item( $item, $post_id );
 
 		if ( '' !== $markup ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component renderers escape and sanitize their output.
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Block/component renderers escape and sanitize their output.
 			echo $markup;
 		}
 	}
 
 	/**
-	 * Inject configured components around WooCommerce single-product blocks in Block Themes.
+	 * Inject configured MDS blocks around WooCommerce single-product blocks in Block Themes.
 	 *
 	 * @since 1.0.1
 	 *
@@ -325,13 +404,7 @@ final class ReleaseMeta {
 			return $block_content;
 		}
 
-		$settings   = SiteSettings::get_settings();
-		$components = array(
-			'release_meta'  => $settings['release_meta_placement'],
-			'release_links' => $settings['release_links_placement'],
-			'custom'        => '' !== $settings['custom_content'] ? $settings['custom_placement'] : 'disabled',
-		);
-
+		$settings  = SiteSettings::get_settings();
 		$namespace = isset( $block['attrs']['__woocommerceNamespace'] ) && is_string( $block['attrs']['__woocommerceNamespace'] )
 			? $block['attrs']['__woocommerceNamespace']
 			: '';
@@ -339,8 +412,11 @@ final class ReleaseMeta {
 		$before = '';
 		$after  = '';
 
-		foreach ( $components as $component => $placement ) {
-			if ( ! empty( self::$rendered_components[ $component ] ) || ! isset( self::BLOCK_PLACEMENTS[ $placement ] ) ) {
+		foreach ( $settings['items'] as $item ) {
+			$item_id   = (string) $item['id'];
+			$placement = (string) $item['placement'];
+
+			if ( empty( $item['enabled'] ) || ! empty( self::$rendered_items[ $item_id ] ) || ! isset( self::BLOCK_PLACEMENTS[ $placement ] ) ) {
 				continue;
 			}
 
@@ -353,7 +429,7 @@ final class ReleaseMeta {
 				continue;
 			}
 
-			$rendered = self::render_component( $component, $queried_id );
+			$rendered = self::render_item( $item, $queried_id );
 			if ( '' === $rendered ) {
 				continue;
 			}

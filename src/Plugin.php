@@ -38,9 +38,54 @@ final class Plugin {
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue' ) );
 		add_action( 'mds_rm_register_custom_meta_boxes', array( MetaBoxes::class, 'register' ) );
 		add_action( 'rest_api_init', array( RestApi::class, 'register_routes' ) );
+		add_action( 'mds_rm_after_cache_purge', array( self::class, 'on_after_cache_purge' ), 10, 4 );
 
 		NetworkSettings::register();
 		SiteSettings::register();
+	}
+
+	/**
+	 * Request a coalesced cache purge through MDS Release Manager's centralized cache manager.
+	 *
+	 * Safely becomes a no-op when paired with an older Release Manager version without MDS_RM_Cache.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param string $context Trigger context label (e.g., 'woocommerce_settings', 'woocommerce_link').
+	 * @param int    $blog_id Optional target multisite blog ID (0 for current site).
+	 * @return void
+	 */
+	public static function request_cache_purge( string $context, int $blog_id = 0 ): void {
+		if ( ! function_exists( 'do_action' ) ) {
+			return;
+		}
+
+		$args = $blog_id > 0 ? array( 'blog_id' => $blog_id ) : array();
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core Release Manager cache purge action.
+		do_action( 'mds_rm_purge_cache', $context, $args );
+	}
+
+	/**
+	 * Clear WooCommerce product transients after a manual or WooCommerce-settings cache purge.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param array<int, string> $purged  Labels of cache adapters purged.
+	 * @param array<int, string> $skipped Slugs of cache adapters skipped.
+	 * @param int                $blog_id Site ID that was purged.
+	 * @param string             $context Trigger context.
+	 * @return void
+	 */
+	public static function on_after_cache_purge( array $purged, array $skipped, int $blog_id, string $context ): void {
+		unset( $purged, $skipped, $blog_id );
+
+		if (
+			in_array( $context, array( 'manual', 'woocommerce_settings' ), true )
+			&& function_exists( 'wc_delete_product_transients' )
+		) {
+			wc_delete_product_transients();
+		}
 	}
 
 	/**

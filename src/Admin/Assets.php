@@ -170,25 +170,36 @@ final class Assets {
 		wp_enqueue_script( $handle );
 		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
 
-		$config = array(
-			'url'          => esc_url_raw( rest_url( 'mds-wc/v1/settings' ) ),
-			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'previewNonce' => wp_create_nonce( SiteSettings::PREVIEW_NONCE_ACTION ),
-			'slotOrder'    => array_keys( SiteSettings::get_active_slots() ),
-			'slotLabels'   => SiteSettings::get_placement_choices(),
-			'messages'     => array(
-				'save'           => __( 'Save Settings', 'mds-woocommerce-integration' ),
-				'saving'         => __( 'Saving…', 'mds-woocommerce-integration' ),
-				'saved'          => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
-				'saveError'      => __( 'Unable to save WooCommerce integration settings.', 'mds-woocommerce-integration' ),
-				'releaseMeta'    => __( 'Release Meta', 'mds-woocommerce-integration' ),
-				'releaseLinks'   => __( 'Release Links', 'mds-woocommerce-integration' ),
-				'customContent'  => __( 'Custom Shortcode / Block', 'mds-woocommerce-integration' ),
-				'moveUp'         => __( 'Move up', 'mds-woocommerce-integration' ),
-				'moveDown'       => __( 'Move down', 'mds-woocommerce-integration' ),
-				/* translators: 1: Component name, 2: Placement slot name. */
-				'movedTo'        => __( 'Moved %1$s to %2$s.', 'mds-woocommerce-integration' ),
-				'previewUpdated' => __( 'Live preview updated.', 'mds-woocommerce-integration' ),
+		$settings = SiteSettings::get_settings();
+		$config   = array(
+			'url'             => esc_url_raw( rest_url( 'mds-wc/v1/settings' ) ),
+			'nonce'           => wp_create_nonce( 'wp_rest' ),
+			'previewNonce'    => wp_create_nonce( SiteSettings::PREVIEW_NONCE_ACTION ),
+			'slotOrder'       => array_keys( SiteSettings::get_active_slots() ),
+			'slotLabels'      => SiteSettings::get_placement_choices(),
+			'availableBlocks' => SiteSettings::get_available_blocks(),
+			'items'           => $settings['items'],
+			'customBlockKey'  => SiteSettings::CUSTOM_BLOCK_KEY,
+			'messages'        => array(
+				'save'              => __( 'Save Settings', 'mds-woocommerce-integration' ),
+				'saving'            => __( 'Saving…', 'mds-woocommerce-integration' ),
+				'saved'             => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
+				'saveError'         => __( 'Unable to save WooCommerce integration settings.', 'mds-woocommerce-integration' ),
+				'enabled'           => __( 'Enabled', 'mds-woocommerce-integration' ),
+				'remove'            => __( 'Remove block', 'mds-woocommerce-integration' ),
+				'moveUp'            => __( 'Move up', 'mds-woocommerce-integration' ),
+				'moveDown'          => __( 'Move down', 'mds-woocommerce-integration' ),
+				'hideBuyNow'        => __( 'Hide Buy Now icon on product pages', 'mds-woocommerce-integration' ),
+				'customPlaceholder' => __( '[release-links show_audio="1"]', 'mds-woocommerce-integration' ),
+				'customLabel'       => __( 'Custom Shortcode or Block Markup', 'mds-woocommerce-integration' ),
+				'emptyList'         => __( 'No blocks added yet. Select an MDS block above and click "+ Add Block".', 'mds-woocommerce-integration' ),
+				/* translators: 1: Block name, 2: Placement slot name. */
+				'movedTo'           => __( 'Moved %1$s to %2$s.', 'mds-woocommerce-integration' ),
+				/* translators: %s: Block name. */
+				'addedBlock'        => __( 'Added %s to product layout.', 'mds-woocommerce-integration' ),
+				/* translators: %s: Block name. */
+				'removedBlock'      => __( 'Removed %s from product layout.', 'mds-woocommerce-integration' ),
+				'previewUpdated'    => __( 'Live preview updated.', 'mds-woocommerce-integration' ),
 			),
 		);
 

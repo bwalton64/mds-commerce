@@ -1,6 +1,6 @@
 /**
- * Designer-oriented WooCommerce product injection blueprint with Up/Down steppers,
- * HTML5 Drag & Drop placement, collapsible Live Preview, and REST save.
+ * Designer-oriented dynamic MDS Block Injection manager with Up/Down steppers,
+ * HTML5 Drag & Drop blueprint, collapsible Live Preview, and REST save.
  *
  * @since 1.0.1
  */
@@ -16,6 +16,8 @@
 	const i18n = config.messages || {};
 	const slotOrder = Array.isArray( config.slotOrder ) ? config.slotOrder : [];
 	const slotLabels = config.slotLabels || {};
+	const availableBlocks = config.availableBlocks || {};
+	const customBlockKey = config.customBlockKey || '__custom_shortcode';
 
 	/**
 	 * Announce a message via wp.a11y.speak() when available.
@@ -54,12 +56,32 @@
 		speak( message, 'error' === type ? 'assertive' : 'polite' );
 	}
 
+	/**
+	 * Resolve metadata for a block name from availableBlocks with safe fallback.
+	 *
+	 * @param {string} blockName Registered block name.
+	 * @return {{name: string, title: string, description: string, badge: string, variant: string}}
+	 */
+	function getBlockMeta( blockName ) {
+		if ( availableBlocks[ blockName ] ) {
+			return availableBlocks[ blockName ];
+		}
+		return {
+			name: blockName,
+			title: blockName,
+			description: '',
+			badge: 'MD',
+			variant: 'extension',
+		};
+	}
+
 	document.addEventListener( 'DOMContentLoaded', () => {
 		const form = document.getElementById( 'mds-wc-site-settings-form' );
 		const saveBtn = document.getElementById( 'mds-wc-site-save-btn' );
 		const statusEl = document.getElementById( 'mds-wc-site-save-status' );
-		const hideBuyNowCheck = document.getElementById( 'mds-wc-hide-buy-now' );
-		const customContentArea = document.getElementById( 'mds-wc-custom-content' );
+		const addBlockSelect = document.getElementById( 'mds-wc-add-block-select' );
+		const addBlockBtn = document.getElementById( 'mds-wc-add-block-btn' );
+		const cardsContainer = document.getElementById( 'mds-wc-block-cards' );
 		const blueprintCanvas = form ? form.querySelector( '.mds-wc-blueprint__canvas' ) : null;
 
 		const previewDetails = document.getElementById( 'mds-wc-live-preview' );
@@ -69,157 +91,294 @@
 		const previewRefreshBtn = document.getElementById( 'mds-wc-preview-refresh' );
 		const previewOpenTabLink = document.getElementById( 'mds-wc-preview-open-tab' );
 
-		if ( ! form || ! saveBtn ) {
+		if ( ! form || ! saveBtn || ! cardsContainer ) {
 			return;
 		}
 
-		const components = {
-			meta: {
-				code: 'RM',
-				label: i18n.releaseMeta || 'Release Meta',
-				defaultSlot: 'woocommerce_single_product_summary:25',
-				input: document.getElementById( 'mds-wc-release-meta-placement' ),
-			},
-			links: {
-				code: 'RL',
-				label: i18n.releaseLinks || 'Release Links',
-				defaultSlot: 'woocommerce_after_single_product_summary:15',
-				input: document.getElementById( 'mds-wc-release-links-placement' ),
-			},
-			custom: {
-				code: 'CS',
-				label: i18n.customContent || 'Custom Shortcode / Block',
-				defaultSlot: 'woocommerce_after_single_product_summary:15',
-				input: document.getElementById( 'mds-wc-custom-placement' ),
-			},
-		};
-
-		const lastActiveSlot = {};
-		Object.keys( components ).forEach( ( key ) => {
-			const val = components[ key ].input ? components[ key ].input.value : 'disabled';
-			lastActiveSlot[ key ] = 'disabled' !== val ? val : components[ key ].defaultSlot;
-		} );
-
-		let draggedComponentKey = null;
+		let items = Array.isArray( config.items )
+			? config.items.map( ( item ) => ( { ...item } ) )
+			: [];
+		let draggedItemId = null;
 		let previewTimer = null;
 
 		/**
-		 * Return the current unsaved form values.
+		 * Find an item by its unique ID.
 		 *
-		 * @return {Object} Current form state.
+		 * @param {string} id Item ID.
+		 * @return {Object|undefined}
 		 */
-		function getCurrentValues() {
-			return {
-				release_meta_placement: components.meta.input ? components.meta.input.value : 'disabled',
-				release_links_placement: components.links.input ? components.links.input.value : 'disabled',
-				hide_buy_now: hideBuyNowCheck ? hideBuyNowCheck.checked : false,
-				custom_placement: components.custom.input ? components.custom.input.value : 'disabled',
-				custom_content: customContentArea ? customContentArea.value : '',
-			};
+		function findItem( id ) {
+			return items.find( ( item ) => item.id === id );
 		}
 
 		/**
-		 * Set a component's placement slot, update UI controls and blueprint, and refresh preview.
+		 * Move an item to a specific slot or into the disabled tray.
 		 *
-		 * @param {string}  componentKey Component key ('meta', 'links', 'custom').
-		 * @param {string}  targetSlot   Target slot key or 'disabled'.
-		 * @param {boolean} announce     Whether to announce via wp.a11y.speak().
+		 * @param {string}  itemId     Item ID.
+		 * @param {string}  targetSlot Active slot key or 'disabled'.
+		 * @param {boolean} announce   Whether to speak status update.
 		 */
-		function setComponentSlot( componentKey, targetSlot, announce = true ) {
-			const comp = components[ componentKey ];
-			if ( ! comp || ! comp.input ) {
+		function moveItemToSlot( itemId, targetSlot, announce = true ) {
+			const item = findItem( itemId );
+			if ( ! item ) {
 				return;
 			}
 
-			if ( 'disabled' !== targetSlot ) {
-				lastActiveSlot[ componentKey ] = targetSlot;
+			if ( 'disabled' === targetSlot ) {
+				item.enabled = false;
+			} else {
+				item.enabled = true;
+				item.placement = targetSlot;
 			}
 
-			comp.input.value = targetSlot;
-			syncAllUI();
+			renderAll();
 			schedulePreviewRefresh();
 
 			if ( announce ) {
+				const meta = getBlockMeta( item.block );
 				const slotName = slotLabels[ targetSlot ] || targetSlot;
 				const template = i18n.movedTo || 'Moved %1$s to %2$s.';
 				speak(
-					template.replace( '%1$s', comp.label ).replace( '%2$s', slotName ),
+					template.replace( '%1$s', meta.title ).replace( '%2$s', slotName ),
 					'polite'
 				);
 			}
 		}
 
 		/**
-		 * Move a component up or down by one slot in the ordered product layout.
+		 * Step an active item up or down by one slot.
 		 *
-		 * @param {string} componentKey Component key ('meta', 'links', 'custom').
-		 * @param {string} direction    'up' or 'down'.
+		 * @param {string} itemId    Item ID.
+		 * @param {string} direction 'up' or 'down'.
 		 */
-		function stepComponent( componentKey, direction ) {
-			const comp = components[ componentKey ];
-			if ( ! comp || ! comp.input || ! slotOrder.length ) {
+		function stepItem( itemId, direction ) {
+			const item = findItem( itemId );
+			if ( ! item || ! item.enabled || ! slotOrder.length ) {
 				return;
 			}
 
-			const currentIndex = slotOrder.indexOf( comp.input.value );
-			if ( -1 === currentIndex ) {
+			const idx = slotOrder.indexOf( item.placement );
+			if ( -1 === idx ) {
 				return;
 			}
 
-			const nextIndex = 'up' === direction ? currentIndex - 1 : currentIndex + 1;
-			if ( nextIndex < 0 || nextIndex >= slotOrder.length ) {
+			const nextIdx = 'up' === direction ? idx - 1 : idx + 1;
+			if ( nextIdx < 0 || nextIdx >= slotOrder.length ) {
 				return;
 			}
 
-			setComponentSlot( componentKey, slotOrder[ nextIndex ], true );
+			moveItemToSlot( itemId, slotOrder[ nextIdx ], true );
 		}
 
 		/**
-		 * Synchronize Control Cards (labels, toggles, stepper disabled states) and Blueprint chips.
+		 * Add a new block item from the MDS Blocks dropdown.
 		 */
-		function syncAllUI() {
-			Object.keys( components ).forEach( ( key ) => {
-				const comp = components[ key ];
-				const val = comp.input ? comp.input.value : 'disabled';
-				const isEnabled = 'disabled' !== val;
-				const idx = slotOrder.indexOf( val );
+		function addSelectedBlock() {
+			if ( ! addBlockSelect || ! addBlockSelect.value ) {
+				return;
+			}
 
-				const card = form.querySelector( `[data-component-card="${ key }"]` );
-				if ( card ) {
-					card.classList.toggle( 'is-enabled', isEnabled );
-					card.classList.toggle( 'is-disabled', ! isEnabled );
-				}
+			const blockName = addBlockSelect.value;
+			const meta = getBlockMeta( blockName );
+			const defaultPlacement =
+				'mds-rm/release-meta' === blockName
+					? 'woocommerce_single_product_summary:25'
+					: 'woocommerce_after_single_product_summary:15';
 
-				const toggle = form.querySelector( `.mds-wc-component-toggle[data-component="${ key }"]` );
-				if ( toggle ) {
-					toggle.checked = isEnabled;
-				}
-
-				const posLabel = form.querySelector( `[data-component-label="${ key }"]` );
-				if ( posLabel ) {
-					posLabel.textContent = slotLabels[ val ] || val;
-				}
-
-				const upBtn = form.querySelector( `.mds-wc-step-btn[data-component="${ key }"][data-direction="up"]` );
-				const downBtn = form.querySelector( `.mds-wc-step-btn[data-component="${ key }"][data-direction="down"]` );
-				if ( upBtn ) {
-					upBtn.disabled = ! isEnabled || idx <= 0;
-				}
-				if ( downBtn ) {
-					downBtn.disabled = ! isEnabled || -1 === idx || idx >= slotOrder.length - 1;
-				}
+			items.push( {
+				id: `item_${ Date.now() }_${ Math.floor( Math.random() * 1000 ) }`,
+				block: blockName,
+				placement: defaultPlacement,
+				enabled: true,
+				hide_buy_now: false,
+				content: '',
 			} );
 
-			renderBlueprintChips();
+			renderAll();
+			schedulePreviewRefresh();
+
+			const msg = ( i18n.addedBlock || 'Added %s to product layout.' ).replace( '%s', meta.title );
+			speak( msg, 'polite' );
 		}
 
 		/**
-		 * Render draggable component chips with inline Up/Down buttons inside each Blueprint slot.
+		 * Remove an item from the dynamic block list.
+		 *
+		 * @param {string} itemId Item ID.
+		 */
+		function removeItem( itemId ) {
+			const item = findItem( itemId );
+			if ( ! item ) {
+				return;
+			}
+
+			const meta = getBlockMeta( item.block );
+			items = items.filter( ( row ) => row.id !== itemId );
+			renderAll();
+			schedulePreviewRefresh();
+
+			const msg = ( i18n.removedBlock || 'Removed %s from product layout.' ).replace( '%s', meta.title );
+			speak( msg, 'polite' );
+		}
+
+		/**
+		 * Render all dynamic block Control Cards in the left column.
+		 */
+		function renderControlCards() {
+			cardsContainer.innerHTML = '';
+
+			if ( ! items.length ) {
+				const empty = document.createElement( 'p' );
+				empty.className = 'description mds-wc-empty-blocks';
+				empty.textContent = i18n.emptyList || 'No blocks added yet.';
+				cardsContainer.appendChild( empty );
+				return;
+			}
+
+			items.forEach( ( item ) => {
+				const meta = getBlockMeta( item.block );
+				const isEnabled = Boolean( item.enabled );
+				const idx = slotOrder.indexOf( item.placement );
+				const slotLabel = isEnabled
+					? slotLabels[ item.placement ] || item.placement
+					: slotLabels.disabled || 'Disabled';
+
+				const card = document.createElement( 'div' );
+				card.className = `mds-wc-control-card mds-wc-control-card--${ meta.variant } ${ isEnabled ? 'is-enabled' : 'is-disabled' }`;
+
+				// Card Header: Badge + Title + Code + Enabled Toggle + Remove Button.
+				const top = document.createElement( 'div' );
+				top.className = 'mds-wc-control-card__top';
+
+				const head = document.createElement( 'div' );
+				head.className = 'mds-wc-control-card__head';
+
+				const pill = document.createElement( 'span' );
+				pill.className = `mds-wc-pill mds-wc-pill--${ meta.variant }`;
+				pill.setAttribute( 'aria-hidden', 'true' );
+				pill.textContent = meta.badge;
+
+				const titleWrap = document.createElement( 'div' );
+				const titleSpan = document.createElement( 'span' );
+				titleSpan.className = 'mds-wc-control-card__title';
+				titleSpan.textContent = meta.title;
+
+				const codeEl = document.createElement( 'code' );
+				codeEl.className = 'mds-wc-shortcode-tag';
+				codeEl.textContent = customBlockKey === item.block ? '[custom]' : item.block;
+
+				titleWrap.appendChild( titleSpan );
+				titleWrap.appendChild( codeEl );
+				head.appendChild( pill );
+				head.appendChild( titleWrap );
+
+				const topActions = document.createElement( 'div' );
+				topActions.className = 'mds-wc-control-card__top-actions';
+
+				const toggleLabel = document.createElement( 'label' );
+				toggleLabel.className = 'mds-wc-enable-toggle';
+				const toggleInput = document.createElement( 'input' );
+				toggleInput.type = 'checkbox';
+				toggleInput.checked = isEnabled;
+				toggleInput.addEventListener( 'change', () => {
+					moveItemToSlot( item.id, toggleInput.checked ? item.placement : 'disabled', true );
+				} );
+				const toggleText = document.createElement( 'span' );
+				toggleText.textContent = i18n.enabled || 'Enabled';
+				toggleLabel.appendChild( toggleInput );
+				toggleLabel.appendChild( toggleText );
+
+				const removeBtn = document.createElement( 'button' );
+				removeBtn.type = 'button';
+				removeBtn.className = 'mds-wc-remove-card-btn';
+				removeBtn.setAttribute( 'aria-label', `${ i18n.remove || 'Remove block' }: ${ meta.title }` );
+				removeBtn.innerHTML = '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
+				removeBtn.addEventListener( 'click', () => removeItem( item.id ) );
+
+				topActions.appendChild( toggleLabel );
+				topActions.appendChild( removeBtn );
+				top.appendChild( head );
+				top.appendChild( topActions );
+				card.appendChild( top );
+
+				// Position Stepper Row.
+				const stepper = document.createElement( 'div' );
+				stepper.className = 'mds-wc-stepper';
+
+				const posEl = document.createElement( 'span' );
+				posEl.className = 'mds-wc-stepper__position';
+				posEl.textContent = slotLabel;
+
+				const btnGroup = document.createElement( 'div' );
+				btnGroup.className = 'mds-wc-stepper__buttons';
+
+				const upBtn = document.createElement( 'button' );
+				upBtn.type = 'button';
+				upBtn.className = 'button button-secondary mds-wc-step-btn';
+				upBtn.disabled = ! isEnabled || idx <= 0;
+				upBtn.setAttribute( 'aria-label', `${ i18n.moveUp || 'Move up' }: ${ meta.title }` );
+				upBtn.innerHTML = '<span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span>';
+				upBtn.addEventListener( 'click', () => stepItem( item.id, 'up' ) );
+
+				const downBtn = document.createElement( 'button' );
+				downBtn.type = 'button';
+				downBtn.className = 'button button-secondary mds-wc-step-btn';
+				downBtn.disabled = ! isEnabled || -1 === idx || idx >= slotOrder.length - 1;
+				downBtn.setAttribute( 'aria-label', `${ i18n.moveDown || 'Move down' }: ${ meta.title }` );
+				downBtn.innerHTML = '<span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>';
+				downBtn.addEventListener( 'click', () => stepItem( item.id, 'down' ) );
+
+				btnGroup.appendChild( upBtn );
+				btnGroup.appendChild( downBtn );
+				stepper.appendChild( posEl );
+				stepper.appendChild( btnGroup );
+				card.appendChild( stepper );
+
+				if ( meta.description ) {
+					const desc = document.createElement( 'p' );
+					desc.className = 'description';
+					desc.textContent = meta.description;
+					card.appendChild( desc );
+				}
+
+				// Block-specific lightweight controls.
+				if ( 'mds-rm/release-links' === item.block ) {
+					const buyNowLabel = document.createElement( 'label' );
+					buyNowLabel.className = 'mds-wc-inline-toggle';
+					const buyNowInput = document.createElement( 'input' );
+					buyNowInput.type = 'checkbox';
+					buyNowInput.checked = Boolean( item.hide_buy_now );
+					buyNowInput.addEventListener( 'change', () => {
+						item.hide_buy_now = buyNowInput.checked;
+						schedulePreviewRefresh();
+					} );
+					const buyNowSpan = document.createElement( 'span' );
+					buyNowSpan.textContent = i18n.hideBuyNow || 'Hide Buy Now icon on product pages';
+					buyNowLabel.appendChild( buyNowInput );
+					buyNowLabel.appendChild( buyNowSpan );
+					card.appendChild( buyNowLabel );
+				} else if ( customBlockKey === item.block ) {
+					const textarea = document.createElement( 'textarea' );
+					textarea.className = 'large-text code mds-wc-custom-textarea';
+					textarea.rows = 3;
+					textarea.placeholder = i18n.customPlaceholder || '[release-links show_audio="1"]';
+					textarea.setAttribute( 'aria-label', i18n.customLabel || 'Custom Shortcode or Block Markup' );
+					textarea.value = item.content || '';
+					textarea.addEventListener( 'input', () => {
+						item.content = textarea.value;
+					} );
+					card.appendChild( textarea );
+				}
+
+				cardsContainer.appendChild( card );
+			} );
+		}
+
+		/**
+		 * Render draggable chips with inline Up/Down buttons inside each Blueprint slot.
 		 */
 		function renderBlueprintChips() {
-			const slots = form.querySelectorAll( '.mds-wc-slot' );
-
-			slots.forEach( ( slot ) => {
+			form.querySelectorAll( '.mds-wc-slot' ).forEach( ( slot ) => {
 				const slotKey = slot.dataset.slot;
 				const chipsWrap = slot.querySelector( '.mds-wc-slot__chips' );
 				if ( ! chipsWrap ) {
@@ -227,34 +386,34 @@
 				}
 				chipsWrap.innerHTML = '';
 
-				const items = Object.keys( components ).filter( ( key ) => {
-					const val = components[ key ].input ? components[ key ].input.value : 'disabled';
-					return val === slotKey;
+				const matching = items.filter( ( item ) => {
+					const effectiveSlot = item.enabled ? item.placement : 'disabled';
+					return effectiveSlot === slotKey;
 				} );
 
-				slot.classList.toggle( 'has-items', items.length > 0 );
+				slot.classList.toggle( 'has-items', matching.length > 0 );
 
-				items.forEach( ( key ) => {
-					const comp = components[ key ];
+				matching.forEach( ( item ) => {
+					const meta = getBlockMeta( item.block );
 					const idx = slotOrder.indexOf( slotKey );
 
 					const chip = document.createElement( 'div' );
-					chip.className = `mds-wc-slot-chip mds-wc-slot-chip--${ key }`;
+					chip.className = `mds-wc-slot-chip mds-wc-slot-chip--${ meta.variant }`;
 					chip.setAttribute( 'draggable', 'true' );
-					chip.dataset.component = key;
+					chip.dataset.itemId = item.id;
 
 					const grip = document.createElement( 'span' );
 					grip.className = 'dashicons dashicons-move mds-wc-slot-chip__grip';
 					grip.setAttribute( 'aria-hidden', 'true' );
 
 					const pill = document.createElement( 'span' );
-					pill.className = `mds-wc-pill mds-wc-pill--${ key }`;
-					pill.textContent = comp.code;
+					pill.className = `mds-wc-pill mds-wc-pill--${ meta.variant }`;
+					pill.textContent = meta.badge;
 					pill.setAttribute( 'aria-hidden', 'true' );
 
 					const label = document.createElement( 'span' );
 					label.className = 'mds-wc-slot-chip__label';
-					label.textContent = comp.label;
+					label.textContent = meta.title;
 
 					chip.appendChild( grip );
 					chip.appendChild( pill );
@@ -268,22 +427,22 @@
 						up.type = 'button';
 						up.className = 'mds-wc-chip-step';
 						up.disabled = idx <= 0;
-						up.setAttribute( 'aria-label', `${ i18n.moveUp || 'Move up' }: ${ comp.label }` );
+						up.setAttribute( 'aria-label', `${ i18n.moveUp || 'Move up' }: ${ meta.title }` );
 						up.innerHTML = '<span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span>';
 						up.addEventListener( 'click', ( event ) => {
 							event.stopPropagation();
-							stepComponent( key, 'up' );
+							stepItem( item.id, 'up' );
 						} );
 
 						const down = document.createElement( 'button' );
 						down.type = 'button';
 						down.className = 'mds-wc-chip-step';
 						down.disabled = -1 === idx || idx >= slotOrder.length - 1;
-						down.setAttribute( 'aria-label', `${ i18n.moveDown || 'Move down' }: ${ comp.label }` );
+						down.setAttribute( 'aria-label', `${ i18n.moveDown || 'Move down' }: ${ meta.title }` );
 						down.innerHTML = '<span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>';
 						down.addEventListener( 'click', ( event ) => {
 							event.stopPropagation();
-							stepComponent( key, 'down' );
+							stepItem( item.id, 'down' );
 						} );
 
 						actions.appendChild( up );
@@ -292,19 +451,19 @@
 					}
 
 					chip.addEventListener( 'dragstart', ( event ) => {
-						draggedComponentKey = key;
+						draggedItemId = item.id;
 						chip.classList.add( 'is-dragging' );
 						if ( blueprintCanvas ) {
 							blueprintCanvas.classList.add( 'is-dragging-active' );
 						}
 						if ( event.dataTransfer ) {
 							event.dataTransfer.effectAllowed = 'move';
-							event.dataTransfer.setData( 'text/plain', key );
+							event.dataTransfer.setData( 'text/plain', item.id );
 						}
 					} );
 
 					chip.addEventListener( 'dragend', () => {
-						draggedComponentKey = null;
+						draggedItemId = null;
 						chip.classList.remove( 'is-dragging' );
 						if ( blueprintCanvas ) {
 							blueprintCanvas.classList.remove( 'is-dragging-active' );
@@ -317,6 +476,14 @@
 					chipsWrap.appendChild( chip );
 				} );
 			} );
+		}
+
+		/**
+		 * Re-render both Control Cards and Blueprint Chips.
+		 */
+		function renderAll() {
+			renderControlCards();
+			renderBlueprintChips();
 		}
 
 		/**
@@ -345,21 +512,21 @@
 						blueprintCanvas.classList.remove( 'is-dragging-active' );
 					}
 
-					const key =
-						draggedComponentKey ||
+					const itemId =
+						draggedItemId ||
 						( event.dataTransfer ? event.dataTransfer.getData( 'text/plain' ) : '' );
 					const targetSlot = slot.dataset.slot;
 
-					if ( key && components[ key ] && targetSlot ) {
-						setComponentSlot( key, targetSlot, true );
+					if ( itemId && targetSlot ) {
+						moveItemToSlot( itemId, targetSlot, true );
 					}
-					draggedComponentKey = null;
+					draggedItemId = null;
 				} );
 			} );
 		}
 
 		/**
-		 * Build the signed Live Preview URL with current unsaved placement overrides.
+		 * Build the signed Live Preview URL with current unsaved item placements.
 		 *
 		 * @return {string} Preview URL or empty string.
 		 */
@@ -368,14 +535,18 @@
 				return '';
 			}
 
-			const values = getCurrentValues();
+			const previewItems = items.map( ( item ) => ( {
+				id: item.id,
+				block: item.block,
+				placement: item.placement,
+				enabled: Boolean( item.enabled ),
+				hide_buy_now: Boolean( item.hide_buy_now ),
+			} ) );
+
 			const url = new window.URL( previewProductSelect.value );
 			url.searchParams.set( 'mds_wc_preview', '1' );
 			url.searchParams.set( 'mds_wc_preview_nonce', config.previewNonce || '' );
-			url.searchParams.set( 'release_meta_placement', values.release_meta_placement );
-			url.searchParams.set( 'release_links_placement', values.release_links_placement );
-			url.searchParams.set( 'hide_buy_now', values.hide_buy_now ? '1' : '0' );
-			url.searchParams.set( 'custom_placement', values.custom_placement );
+			url.searchParams.set( 'mds_wc_preview_items', JSON.stringify( previewItems ) );
 			url.searchParams.set( '_t', String( Date.now() ) );
 
 			return url.toString();
@@ -411,27 +582,8 @@
 			previewTimer = window.setTimeout( refreshLivePreview, 250 );
 		}
 
-		form.querySelectorAll( '.mds-wc-step-btn' ).forEach( ( btn ) => {
-			btn.addEventListener( 'click', () => {
-				stepComponent( btn.dataset.component, btn.dataset.direction );
-			} );
-		} );
-
-		form.querySelectorAll( '.mds-wc-component-toggle' ).forEach( ( toggle ) => {
-			toggle.addEventListener( 'change', () => {
-				const key = toggle.dataset.component;
-				if ( ! key || ! components[ key ] ) {
-					return;
-				}
-				const targetSlot = toggle.checked
-					? lastActiveSlot[ key ] || components[ key ].defaultSlot
-					: 'disabled';
-				setComponentSlot( key, targetSlot, true );
-			} );
-		} );
-
-		if ( hideBuyNowCheck ) {
-			hideBuyNowCheck.addEventListener( 'change', schedulePreviewRefresh );
+		if ( addBlockBtn ) {
+			addBlockBtn.addEventListener( 'click', addSelectedBlock );
 		}
 
 		if ( previewDetails ) {
@@ -466,7 +618,7 @@
 		} );
 
 		initBlueprintDropzones();
-		syncAllUI();
+		renderAll();
 
 		form.addEventListener( 'submit', async ( event ) => {
 			event.preventDefault();
@@ -483,12 +635,17 @@
 						'Content-Type': 'application/json',
 						'X-WP-Nonce': config.nonce,
 					},
-					body: JSON.stringify( getCurrentValues() ),
+					body: JSON.stringify( { items } ),
 				} );
 
 				const data = await response.json().catch( () => ( {} ) );
 				if ( ! response.ok || ( data && false === data.success ) ) {
 					throw new Error( ( data && data.message ) || i18n.saveError || 'Unable to save settings.' );
+				}
+
+				if ( data && data.settings && Array.isArray( data.settings.items ) ) {
+					items = data.settings.items;
+					renderAll();
 				}
 
 				setStatus( statusEl, 'success', ( data && data.message ) || i18n.saved || 'Settings saved.' );

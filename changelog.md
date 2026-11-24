@@ -6,16 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Wired `do_action( 'mds_rm_purge_cache', ... )` into WooCommerce product link/unlink/create (`woocommerce_link`) and network store toggles (`woocommerce_network_settings`) so Release Manager's `MDS_RM_Cache` coalesces and flushes affected Hub and Spoke store caches automatically.
+
 ## [1.0.1] - 2026-11-23
 
 ### Added
 - Composer PSR-4 architecture under `MDS\WooCommerce\` (`src/`) with centralized `Plugin` service registrar.
 - Fire-and-forget **Seed & Hand Off** REST endpoints: `POST /mds-wc/v1/link`, `DELETE /mds-wc/v1/link`, and `GET /mds-wc/v1/taxonomies` (plus `mds-woo/v1` backward-compatible aliases).
 - Ergonomic WooCommerce Store Cards in the Release editor with status badges (`Published`, `Draft — Pending Store Review`), `View in Store` / `Edit in Store` links, accessible live-search combobox, and a native `<dialog>` Create Product modal pre-seeded with Release title, excerpt (Short Description), full description, UPC/SKU, and featured image.
-- **WooCommerce Integration** site settings tab under **Releases -> Settings** (`SiteSettings`, `mds_rm_site_settings_tabs`, `POST /mds-wc/v1/settings`, `mds_wc_product_injection`) mirroring the Bandcamp Integration tab pattern with a designer-oriented 2-column **Visual Product Page Blueprint** featuring **Enabled toggles + Up/Down (`↑`/`↓`) steppers**, **HTML5 Drag & Drop placement** across all 6 product slots and an Inactive/Disabled tray, and a collapsible **Live Preview** panel (closed initially) with product selector, Desktop/Tablet/Mobile viewport toggles, and nonce-verified unsaved placement previews.
+- **WooCommerce Integration** site settings tab under **Releases -> Settings** (`SiteSettings`, `mds_rm_site_settings_tabs`, `POST /mds-wc/v1/settings`, `mds_wc_product_injection`) mirroring the Bandcamp Integration tab pattern with **dynamic MDS block auto-discovery** (`WP_Block_Type_Registry` `mds-release-manager` category — automatically listing Core Release Manager blocks, active Bandcamp blocks, and any future MDS extension blocks, plus a Custom Shortcode fallback and `mds_wc_injectable_blocks` filter), 9 single-product placement slots (including *Below Product Title*, *Below Product Gallery*, and *Above Product Description / Tabs*), a clean 2-column **Visual Product Page Blueprint** with **Enabled toggles + Up/Down (`↑`/`↓`) steppers** and **Gutenberg-style blue insertion line Drag & Drop**, and a collapsible **Live Preview** panel (closed initially) with product selector, Desktop/Tablet/Mobile viewport toggles, and nonce-verified unsaved placement previews.
 - Dual **Block Theme (`render_block`) + Classic WooCommerce theme** single-product injection in `ReleaseMeta`, fixing missing `[release-meta]` and `[release-links]` output on FSE themes like Twenty Twenty-Five (defaulting Release Links to **Below Product Description / Tabs**).
 - Automatic seeding of the `all` (`All` — *"All supported media formats."*, icon `fas fa-boxes-stacked`) `release_media_format` term on the Hub and live wiring of `#mds_use_linked_product_btn` into the Release Manager Multi-Format Buy Now repeater using the store name and linked published product URL.
 - Delegated Hub-to-Spoke permission check (`Plugin::user_can_manage_spoke_product()` and `mds_wc_user_can_manage_spoke_product` filter) so Hub editors without spoke-site accounts can link or seed Draft products.
+- Centralized Release Manager cache integration (`Plugin::request_cache_purge()` firing `mds_rm_purge_cache` with multisite `blog_id` support on site settings saves, network store toggles, and product link/unlink/generate actions, plus `mds_rm_after_cache_purge` clearing WooCommerce product transients on `manual` and `woocommerce_settings` purges).
 - `WC_Product_Simple` CRUD seeding with `upc_ean` written to both SKU (`_sku`) and WooCommerce's native GTIN, UPC, EAN, or ISBN field (`_global_unique_id`), `MDS_RM_Virtual_Media` thumbnail replication, audit meta (`_mds_wc_seeded_*`), and WooCommerce transient/cache clearing.
 - `@wordpress/scripts` configuration (`package.json`), `.gitignore`, and full documentation (`README.MD`, `readme.txt`, `changelog.md`, `.agents/technical-blueprint.md`).
 

@@ -11,11 +11,12 @@ declare(strict_types=1);
 namespace MDS\WooCommerce\Admin;
 
 use MDS\WooCommerce\Plugin;
+use WP_Block_Type_Registry;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Manages the WooCommerce Integration tab in Releases -> Settings for product view injection.
+ * Manages the WooCommerce Integration tab in Releases -> Settings for dynamic MDS block injection.
  *
  * @since 1.0.1
  */
@@ -46,6 +47,22 @@ final class SiteSettings {
 	public const PREVIEW_NONCE_ACTION = 'mds_wc_live_preview';
 
 	/**
+	 * Special block identifier for custom shortcode/block markup fallback.
+	 *
+	 * @since 1.0.1
+	 * @var string
+	 */
+	public const CUSTOM_BLOCK_KEY = '__custom_shortcode';
+
+	/**
+	 * Maximum number of injected block items allowed per site.
+	 *
+	 * @since 1.0.1
+	 * @var int
+	 */
+	private const MAX_ITEMS = 12;
+
+	/**
 	 * Register site settings hooks.
 	 *
 	 * @since 1.0.1
@@ -55,6 +72,19 @@ final class SiteSettings {
 	public static function register(): void {
 		add_action( 'admin_init', array( self::class, 'register_settings' ) );
 		add_filter( 'mds_rm_site_settings_tabs', array( self::class, 'register_tab' ) );
+		add_action( 'update_option_' . self::OPTION_KEY, array( self::class, 'on_option_updated' ) );
+		add_action( 'add_option_' . self::OPTION_KEY, array( self::class, 'on_option_updated' ) );
+	}
+
+	/**
+	 * Request a coalesced cache purge whenever per-site product injection settings change.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @return void
+	 */
+	public static function on_option_updated(): void {
+		Plugin::request_cache_purge( 'woocommerce_settings' );
 	}
 
 	/**
@@ -84,12 +114,15 @@ final class SiteSettings {
 	 */
 	public static function get_active_slots(): array {
 		return array(
-			'woocommerce_single_product_summary:5'        => __( 'Above Product Title', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:15'       => __( 'Below Price', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:25'       => __( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:45'       => __( 'Below Add to Cart', 'mds-woocommerce-integration' ),
-			'woocommerce_after_single_product_summary:10' => __( 'Below Product Summary', 'mds-woocommerce-integration' ),
-			'woocommerce_after_single_product_summary:15' => __( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:5'         => __( 'Above Product Title', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:6'         => __( 'Below Product Title', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:15'        => __( 'Below Price', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:25'        => __( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:45'        => __( 'Below Add to Cart', 'mds-woocommerce-integration' ),
+			'woocommerce_after_single_product_summary:10'  => __( 'Below Product Summary', 'mds-woocommerce-integration' ),
+			'woocommerce_before_single_product_summary:25' => __( 'Below Product Gallery', 'mds-woocommerce-integration' ),
+			'woocommerce_after_single_product_summary:12'  => __( 'Above Product Description / Tabs', 'mds-woocommerce-integration' ),
+			'woocommerce_after_single_product_summary:15'  => __( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ),
 		);
 	}
 
@@ -110,53 +143,287 @@ final class SiteSettings {
 	}
 
 	/**
-	 * Return normalized per-site product injection settings, honoring authorized Live Preview overrides.
+	 * Discover all registered blocks in the `mds-release-manager` block category plus the Custom Shortcode option.
+	 *
+	 * Automatically includes MDS Release Manager core blocks, MDS Bandcamp Integration blocks when active,
+	 * and any future MDS extension blocks registered under the shared category.
 	 *
 	 * @since 1.0.1
 	 *
-	 * @return array{
-	 *     release_meta_placement: string,
-	 *     release_links_placement: string,
-	 *     hide_buy_now: bool,
-	 *     custom_placement: string,
-	 *     custom_content: string
-	 * }
+	 * @return array<string, array{name: string, title: string, description: string, group: string, badge: string, variant: string}>
 	 */
-	public static function get_settings(): array {
-		$legacy_meta_placement = get_theme_mod( 'mds_rm_woo_injection', 'woocommerce_single_product_summary:25' );
-		$choices               = self::get_placement_choices();
+	public static function get_available_blocks(): array {
+		$blocks   = array();
+		$registry = WP_Block_Type_Registry::get_instance();
 
-		if ( ! is_string( $legacy_meta_placement ) || ! array_key_exists( $legacy_meta_placement, $choices ) ) {
-			$legacy_meta_placement = 'woocommerce_single_product_summary:25';
+		foreach ( $registry->get_all_registered() as $block_name => $block_type ) {
+			if ( 'mds-release-manager' !== ( $block_type->category ?? '' ) ) {
+				continue;
+			}
+
+			$title       = ! empty( $block_type->title ) ? (string) $block_type->title : (string) $block_name;
+			$description = ! empty( $block_type->description ) ? (string) $block_type->description : '';
+			$group       = self::resolve_block_group( (string) $block_name );
+			$variant     = self::resolve_block_variant( (string) $block_name );
+			$badge       = self::resolve_block_badge( (string) $block_name, $title );
+
+			$blocks[ (string) $block_name ] = array(
+				'name'        => (string) $block_name,
+				'title'       => $title,
+				'description' => $description,
+				'group'       => $group,
+				'badge'       => $badge,
+				'variant'     => $variant,
+			);
 		}
 
-		$defaults = array(
-			'release_meta_placement'  => $legacy_meta_placement,
-			'release_links_placement' => 'woocommerce_after_single_product_summary:15',
-			'hide_buy_now'            => false,
-			'custom_placement'        => 'disabled',
-			'custom_content'          => '',
+		// Ensure core blocks remain selectable even if inspected before block init.
+		if ( ! isset( $blocks['mds-rm/release-meta'] ) ) {
+			$blocks['mds-rm/release-meta'] = array(
+				'name'        => 'mds-rm/release-meta',
+				'title'       => __( 'Release Meta', 'mds-woocommerce-integration' ),
+				'description' => __( 'Displays release metadata (year, label, distributor, UPC/EAN, format).', 'mds-woocommerce-integration' ),
+				'group'       => __( 'MDS Release Manager', 'mds-woocommerce-integration' ),
+				'badge'       => 'RM',
+				'variant'     => 'meta',
+			);
+		}
+
+		if ( ! isset( $blocks['mds-rm/release-links'] ) ) {
+			$blocks['mds-rm/release-links'] = array(
+				'name'        => 'mds-rm/release-links',
+				'title'       => __( 'Release Links', 'mds-woocommerce-integration' ),
+				'description' => __( 'Displays streaming links and the configured audio preview player.', 'mds-woocommerce-integration' ),
+				'group'       => __( 'MDS Release Manager', 'mds-woocommerce-integration' ),
+				'badge'       => 'RL',
+				'variant'     => 'links',
+			);
+		}
+
+		$blocks[ self::CUSTOM_BLOCK_KEY ] = array(
+			'name'        => self::CUSTOM_BLOCK_KEY,
+			'title'       => __( 'Custom Shortcode / Block', 'mds-woocommerce-integration' ),
+			'description' => __( 'Render a custom shortcode or serialized Gutenberg block markup.', 'mds-woocommerce-integration' ),
+			'group'       => __( 'Custom', 'mds-woocommerce-integration' ),
+			'badge'       => 'CS',
+			'variant'     => 'custom',
 		);
 
-		$stored   = get_option( self::OPTION_KEY, null );
-		$settings = is_array( $stored ) ? self::sanitize_settings( array_merge( $defaults, $stored ) ) : $defaults;
+		/**
+		 * Filters the list of MDS blocks available for single WooCommerce product page injection.
+		 *
+		 * @since 1.0.1
+		 *
+		 * @param array<string, array{name: string, title: string, description: string, group: string, badge: string, variant: string}> $blocks Available blocks keyed by block name.
+		 */
+		return (array) apply_filters( 'mds_wc_injectable_blocks', $blocks );
+	}
+
+	/**
+	 * Determine the optgroup label for a registered block name.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param string $block_name Block name (namespace/slug).
+	 * @return string Group label.
+	 */
+	private static function resolve_block_group( string $block_name ): string {
+		if ( str_starts_with( $block_name, 'mds-rm/' ) ) {
+			return __( 'MDS Release Manager', 'mds-woocommerce-integration' );
+		}
+
+		if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
+			return __( 'MDS Bandcamp Integration', 'mds-woocommerce-integration' );
+		}
+
+		return __( 'MDS Extensions', 'mds-woocommerce-integration' );
+	}
+
+	/**
+	 * Determine the visual color variant for a block name.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param string $block_name Block name.
+	 * @return string CSS variant key.
+	 */
+	private static function resolve_block_variant( string $block_name ): string {
+		if ( 'mds-rm/release-meta' === $block_name ) {
+			return 'meta';
+		}
+
+		if ( 'mds-rm/release-links' === $block_name ) {
+			return 'links';
+		}
+
+		if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
+			return 'bandcamp';
+		}
+
+		if ( self::CUSTOM_BLOCK_KEY === $block_name ) {
+			return 'custom';
+		}
+
+		return 'extension';
+	}
+
+	/**
+	 * Generate a concise 2-character badge code for a block.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param string $block_name Block name.
+	 * @param string $title      Block title.
+	 * @return string 2-letter uppercase badge code.
+	 */
+	private static function resolve_block_badge( string $block_name, string $title ): string {
+		if ( 'mds-rm/release-meta' === $block_name ) {
+			return 'RM';
+		}
+
+		if ( 'mds-rm/release-links' === $block_name ) {
+			return 'RL';
+		}
+
+		if ( 'mds-rm/artist-discography' === $block_name ) {
+			return 'AD';
+		}
+
+		if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
+			return 'BC';
+		}
+
+		$words = preg_split( '/\s+/', trim( $title ) );
+		if ( is_array( $words ) && count( $words ) >= 2 ) {
+			return strtoupper( substr( $words[0], 0, 1 ) . substr( $words[1], 0, 1 ) );
+		}
+
+		return strtoupper( substr( $title, 0, 2 ) );
+	}
+
+	/**
+	 * Return default seeded injection items (Release Meta + Release Links).
+	 *
+	 * @since 1.0.1
+	 *
+	 * @return array<int, array{id: string, block: string, placement: string, enabled: bool, hide_buy_now: bool, content: string}>
+	 */
+	private static function get_default_items(): array {
+		$legacy_meta = get_theme_mod( 'mds_rm_woo_injection', 'woocommerce_single_product_summary:25' );
+		$choices     = self::get_placement_choices();
+
+		if ( ! is_string( $legacy_meta ) || ! array_key_exists( $legacy_meta, $choices ) ) {
+			$legacy_meta = 'woocommerce_single_product_summary:25';
+		}
+
+		return array(
+			array(
+				'id'           => 'item_release_meta',
+				'block'        => 'mds-rm/release-meta',
+				'placement'    => 'disabled' === $legacy_meta ? 'woocommerce_single_product_summary:25' : $legacy_meta,
+				'enabled'      => 'disabled' !== $legacy_meta,
+				'hide_buy_now' => false,
+				'content'      => '',
+			),
+			array(
+				'id'           => 'item_release_links',
+				'block'        => 'mds-rm/release-links',
+				'placement'    => 'woocommerce_after_single_product_summary:15',
+				'enabled'      => true,
+				'hide_buy_now' => false,
+				'content'      => '',
+			),
+		);
+	}
+
+	/**
+	 * Convert legacy flat option format into the dynamic `items` list schema.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param array<string, mixed> $legacy Legacy option array.
+	 * @return array<int, array<string, mixed>> Converted item entries.
+	 */
+	private static function convert_legacy_settings( array $legacy ): array {
+		$items = array();
+
+		$meta_place = isset( $legacy['release_meta_placement'] ) && is_string( $legacy['release_meta_placement'] )
+			? $legacy['release_meta_placement']
+			: 'woocommerce_single_product_summary:25';
+		$items[]    = array(
+			'id'           => 'item_release_meta',
+			'block'        => 'mds-rm/release-meta',
+			'placement'    => 'disabled' === $meta_place ? 'woocommerce_single_product_summary:25' : $meta_place,
+			'enabled'      => 'disabled' !== $meta_place,
+			'hide_buy_now' => false,
+			'content'      => '',
+		);
+
+		$links_place = isset( $legacy['release_links_placement'] ) && is_string( $legacy['release_links_placement'] )
+			? $legacy['release_links_placement']
+			: 'woocommerce_after_single_product_summary:15';
+		$items[]     = array(
+			'id'           => 'item_release_links',
+			'block'        => 'mds-rm/release-links',
+			'placement'    => 'disabled' === $links_place ? 'woocommerce_after_single_product_summary:15' : $links_place,
+			'enabled'      => 'disabled' !== $links_place,
+			'hide_buy_now' => ! empty( $legacy['hide_buy_now'] ),
+			'content'      => '',
+		);
+
+		$custom_place   = isset( $legacy['custom_placement'] ) && is_string( $legacy['custom_placement'] )
+			? $legacy['custom_placement']
+			: 'disabled';
+		$custom_content = isset( $legacy['custom_content'] ) && is_string( $legacy['custom_content'] )
+			? trim( $legacy['custom_content'] )
+			: '';
+
+		if ( 'disabled' !== $custom_place || '' !== $custom_content ) {
+			$items[] = array(
+				'id'           => 'item_custom',
+				'block'        => self::CUSTOM_BLOCK_KEY,
+				'placement'    => 'disabled' === $custom_place ? 'woocommerce_after_single_product_summary:15' : $custom_place,
+				'enabled'      => 'disabled' !== $custom_place,
+				'hide_buy_now' => false,
+				'content'      => $custom_content,
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Return normalized per-site product injection settings (`items`), honoring authorized Live Preview overrides.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @return array{items: array<int, array{id: string, block: string, placement: string, enabled: bool, hide_buy_now: bool, content: string}>}
+	 */
+	public static function get_settings(): array {
+		$stored = get_option( self::OPTION_KEY, null );
+
+		if ( ! is_array( $stored ) ) {
+			$settings = array( 'items' => self::get_default_items() );
+		} elseif ( isset( $stored['items'] ) && is_array( $stored['items'] ) ) {
+			$settings = self::sanitize_settings( $stored );
+		} else {
+			$settings = self::sanitize_settings(
+				array(
+					'items' => self::convert_legacy_settings( $stored ),
+				)
+			);
+		}
 
 		return self::apply_preview_overrides( $settings );
 	}
 
 	/**
-	 * Apply signed, allowlisted Live Preview placement overrides for administrators viewing the preview iframe.
+	 * Apply signed, allowlisted Live Preview overrides for administrators viewing the preview iframe.
 	 *
 	 * @since 1.0.1
 	 *
 	 * @param array<string, mixed> $settings Base saved settings.
-	 * @return array{
-	 *     release_meta_placement: string,
-	 *     release_links_placement: string,
-	 *     hide_buy_now: bool,
-	 *     custom_placement: string,
-	 *     custom_content: string
-	 * } Settings with any authorized preview overrides applied.
+	 * @return array{items: array<int, array{id: string, block: string, placement: string, enabled: bool, hide_buy_now: bool, content: string}>}
 	 */
 	private static function apply_preview_overrides( array $settings ): array {
 		if ( is_admin() || ! current_user_can( 'manage_options' ) ) {
@@ -173,22 +440,36 @@ final class SiteSettings {
 			return $settings;
 		}
 
-		$choices = self::get_placement_choices();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce already verified above.
+		if ( empty( $_GET['mds_wc_preview_items'] ) || ! is_string( $_GET['mds_wc_preview_items'] ) ) {
+			return $settings;
+		}
 
-		foreach ( array( 'release_meta_placement', 'release_links_placement', 'custom_placement' ) as $key ) {
-			if ( isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ) {
-				$candidate = sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
-				if ( array_key_exists( $candidate, $choices ) ) {
-					$settings[ $key ] = $candidate;
-				}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload sanitized element-by-element via sanitize_settings().
+		$decoded = json_decode( wp_unslash( $_GET['mds_wc_preview_items'] ), true );
+		if ( ! is_array( $decoded ) ) {
+			return $settings;
+		}
+
+		// Preserve saved custom shortcode content by ID (never accept raw markup from query params).
+		$saved_custom_by_id = array();
+		foreach ( $settings['items'] as $saved_item ) {
+			if ( self::CUSTOM_BLOCK_KEY === $saved_item['block'] && '' !== $saved_item['content'] ) {
+				$saved_custom_by_id[ $saved_item['id'] ] = $saved_item['content'];
 			}
 		}
 
-		if ( isset( $_GET['hide_buy_now'] ) ) {
-			$settings['hide_buy_now'] = '1' === sanitize_text_field( wp_unslash( (string) $_GET['hide_buy_now'] ) );
+		$merged_preview = array();
+		foreach ( $decoded as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$row_id           = isset( $row['id'] ) && is_string( $row['id'] ) ? sanitize_key( $row['id'] ) : '';
+			$row['content']   = $saved_custom_by_id[ $row_id ] ?? '';
+			$merged_preview[] = $row;
 		}
 
-		return $settings;
+		return self::sanitize_settings( array( 'items' => $merged_preview ) );
 	}
 
 	/**
@@ -197,38 +478,59 @@ final class SiteSettings {
 	 * @since 1.0.1
 	 *
 	 * @param mixed $raw Submitted settings array.
-	 * @return array{
-	 *     release_meta_placement: string,
-	 *     release_links_placement: string,
-	 *     hide_buy_now: bool,
-	 *     custom_placement: string,
-	 *     custom_content: string
-	 * }
+	 * @return array{items: array<int, array{id: string, block: string, placement: string, enabled: bool, hide_buy_now: bool, content: string}>}
 	 */
 	public static function sanitize_settings( mixed $raw ): array {
-		$choices = self::get_placement_choices();
-		$input   = is_array( $raw ) ? $raw : array();
+		$input        = is_array( $raw ) ? $raw : array();
+		$raw_items    = isset( $input['items'] ) && is_array( $input['items'] )
+			? $input['items']
+			: self::convert_legacy_settings( $input );
+		$active_slots = self::get_active_slots();
+		$valid_blocks = self::get_available_blocks();
 
-		$meta_placement  = isset( $input['release_meta_placement'] ) && is_string( $input['release_meta_placement'] ) && array_key_exists( $input['release_meta_placement'], $choices )
-			? $input['release_meta_placement']
-			: 'woocommerce_single_product_summary:25';
-		$links_placement = isset( $input['release_links_placement'] ) && is_string( $input['release_links_placement'] ) && array_key_exists( $input['release_links_placement'], $choices )
-			? $input['release_links_placement']
-			: 'woocommerce_after_single_product_summary:15';
-		$custom_place    = isset( $input['custom_placement'] ) && is_string( $input['custom_placement'] ) && array_key_exists( $input['custom_placement'], $choices )
-			? $input['custom_placement']
-			: 'disabled';
-		$hide_buy_now    = ! empty( $input['hide_buy_now'] );
-		$custom_content  = isset( $input['custom_content'] ) && is_string( $input['custom_content'] )
-			? trim( wp_kses_post( $input['custom_content'] ) )
-			: '';
+		$sanitized_items = array();
+		$counter         = 0;
+
+		foreach ( $raw_items as $row ) {
+			if ( ! is_array( $row ) || $counter >= self::MAX_ITEMS ) {
+				continue;
+			}
+
+			$block = isset( $row['block'] ) && is_string( $row['block'] ) ? trim( $row['block'] ) : '';
+			if ( '' === $block || ! isset( $valid_blocks[ $block ] ) ) {
+				continue;
+			}
+
+			$placement = isset( $row['placement'] ) && is_string( $row['placement'] ) ? $row['placement'] : '';
+			$enabled   = array_key_exists( 'enabled', $row ) ? (bool) $row['enabled'] : ( 'disabled' !== $placement );
+
+			if ( ! array_key_exists( $placement, $active_slots ) ) {
+				$placement = 'mds-rm/release-meta' === $block
+					? 'woocommerce_single_product_summary:25'
+					: 'woocommerce_after_single_product_summary:15';
+			}
+
+			++$counter;
+			$id = isset( $row['id'] ) && is_string( $row['id'] ) && '' !== sanitize_key( $row['id'] )
+				? sanitize_key( $row['id'] )
+				: 'item_' . $counter;
+
+			$content = self::CUSTOM_BLOCK_KEY === $block && isset( $row['content'] ) && is_string( $row['content'] )
+				? trim( wp_kses_post( $row['content'] ) )
+				: '';
+
+			$sanitized_items[] = array(
+				'id'           => $id,
+				'block'        => $block,
+				'placement'    => $placement,
+				'enabled'      => $enabled,
+				'hide_buy_now' => 'mds-rm/release-links' === $block && ! empty( $row['hide_buy_now'] ),
+				'content'      => $content,
+			);
+		}
 
 		return array(
-			'release_meta_placement'  => $meta_placement,
-			'release_links_placement' => $links_placement,
-			'hide_buy_now'            => $hide_buy_now,
-			'custom_placement'        => $custom_place,
-			'custom_content'          => $custom_content,
+			'items' => $sanitized_items,
 		);
 	}
 
@@ -291,113 +593,6 @@ final class SiteSettings {
 	}
 
 	/**
-	 * Render a single component placement card with Enable toggle and Up/Down stepper controls.
-	 *
-	 * @since 1.0.1
-	 *
-	 * @param string $component_key Component identifier ('meta', 'links', or 'custom').
-	 * @param string $input_id      Hidden input ID.
-	 * @param string $field_name    Option array key name.
-	 * @param string $current_slot  Current placement value.
-	 * @param string $code          Short 2-letter badge code ('RM', 'RL', 'CS').
-	 * @param string $title         Human-readable component title.
-	 * @param string $shortcode     Shortcode label shown in code tag.
-	 * @param string $description   Component description text.
-	 * @param string $extra_html    Optional extra controls HTML rendered at the bottom of the card.
-	 * @return void
-	 */
-	private static function render_control_card(
-		string $component_key,
-		string $input_id,
-		string $field_name,
-		string $current_slot,
-		string $code,
-		string $title,
-		string $shortcode,
-		string $description,
-		string $extra_html = ''
-	): void {
-		$choices    = self::get_placement_choices();
-		$is_enabled = 'disabled' !== $current_slot;
-		$slot_label = $choices[ $current_slot ] ?? __( 'Disabled', 'mds-woocommerce-integration' );
-		$toggle_id  = $input_id . '-enabled';
-		?>
-		<div
-			class="mds-wc-control-card mds-wc-control-card--<?php echo esc_attr( $component_key ); ?> <?php echo $is_enabled ? 'is-enabled' : 'is-disabled'; ?>"
-			data-component-card="<?php echo esc_attr( $component_key ); ?>"
-		>
-			<div class="mds-wc-control-card__top">
-				<div class="mds-wc-control-card__head">
-					<span class="mds-wc-pill mds-wc-pill--<?php echo esc_attr( $component_key ); ?>" aria-hidden="true">
-						<?php echo esc_html( $code ); ?>
-					</span>
-					<div>
-						<span class="mds-wc-control-card__title"><?php echo esc_html( $title ); ?></span>
-						<code class="mds-wc-shortcode-tag"><?php echo esc_html( $shortcode ); ?></code>
-					</div>
-				</div>
-
-				<label class="mds-wc-enable-toggle" for="<?php echo esc_attr( $toggle_id ); ?>">
-					<input
-						type="checkbox"
-						id="<?php echo esc_attr( $toggle_id ); ?>"
-						class="mds-wc-component-toggle"
-						data-component="<?php echo esc_attr( $component_key ); ?>"
-						<?php checked( $is_enabled ); ?>
-					/>
-					<span><?php esc_html_e( 'Enabled', 'mds-woocommerce-integration' ); ?></span>
-				</label>
-			</div>
-
-			<input
-				type="hidden"
-				id="<?php echo esc_attr( $input_id ); ?>"
-				name="<?php echo esc_attr( self::OPTION_KEY ); ?>[<?php echo esc_attr( $field_name ); ?>]"
-				value="<?php echo esc_attr( $current_slot ); ?>"
-				data-component-value="<?php echo esc_attr( $component_key ); ?>"
-			/>
-
-			<div class="mds-wc-stepper" role="group" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: Component name. */ __( '%s placement position', 'mds-woocommerce-integration' ), $title ) ); ?>">
-				<span class="mds-wc-stepper__position" data-component-label="<?php echo esc_attr( $component_key ); ?>">
-					<?php echo esc_html( $slot_label ); ?>
-				</span>
-				<div class="mds-wc-stepper__buttons">
-					<button
-						type="button"
-						class="button button-secondary mds-wc-step-btn"
-						data-component="<?php echo esc_attr( $component_key ); ?>"
-						data-direction="up"
-						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: Component name. */ __( 'Move %s up one slot', 'mds-woocommerce-integration' ), $title ) ); ?>"
-						<?php disabled( ! $is_enabled ); ?>
-					>
-						<span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span>
-					</button>
-					<button
-						type="button"
-						class="button button-secondary mds-wc-step-btn"
-						data-component="<?php echo esc_attr( $component_key ); ?>"
-						data-direction="down"
-						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: Component name. */ __( 'Move %s down one slot', 'mds-woocommerce-integration' ), $title ) ); ?>"
-						<?php disabled( ! $is_enabled ); ?>
-					>
-						<span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
-					</button>
-				</div>
-			</div>
-
-			<p class="description"><?php echo esc_html( $description ); ?></p>
-
-			<?php
-			if ( '' !== $extra_html ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Extra HTML is escaped by the caller.
-				echo $extra_html;
-			}
-			?>
-		</div>
-		<?php
-	}
-
-	/**
 	 * Render the designer-oriented WooCommerce Integration settings tab inside Releases -> Settings.
 	 *
 	 * @since 1.0.1
@@ -409,38 +604,13 @@ final class SiteSettings {
 			wp_die( esc_html__( 'You are not allowed to manage WooCommerce integration settings.', 'mds-woocommerce-integration' ) );
 		}
 
-		$settings         = self::get_settings();
+		$available_blocks = self::get_available_blocks();
+		$grouped_blocks   = array();
+		foreach ( $available_blocks as $block ) {
+			$grouped_blocks[ $block['group'] ][] = $block;
+		}
+
 		$preview_products = self::get_preview_products();
-
-		ob_start();
-		?>
-		<label class="mds-wc-inline-toggle" for="mds-wc-hide-buy-now">
-			<input
-				type="checkbox"
-				id="mds-wc-hide-buy-now"
-				name="<?php echo esc_attr( self::OPTION_KEY ); ?>[hide_buy_now]"
-				value="1"
-				<?php checked( $settings['hide_buy_now'] ); ?>
-			/>
-			<span><?php esc_html_e( 'Hide Buy Now icon on product pages', 'mds-woocommerce-integration' ); ?></span>
-		</label>
-		<?php
-		$links_extra_html = (string) ob_get_clean();
-
-		ob_start();
-		?>
-		<label for="mds-wc-custom-content" class="screen-reader-text">
-			<?php esc_html_e( 'Custom Shortcode or Block Markup', 'mds-woocommerce-integration' ); ?>
-		</label>
-		<textarea
-			id="mds-wc-custom-content"
-			name="<?php echo esc_attr( self::OPTION_KEY ); ?>[custom_content]"
-			class="large-text code mds-wc-custom-textarea"
-			rows="3"
-			placeholder="[release-links show_audio=&quot;1&quot;]"
-		><?php echo esc_textarea( $settings['custom_content'] ); ?></textarea>
-		<?php
-		$custom_extra_html = (string) ob_get_clean();
 		?>
 		<form id="mds-wc-site-settings-form" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>" method="post">
 			<div class="mds-panel mds-wc-designer-panel">
@@ -448,49 +618,34 @@ final class SiteSettings {
 					<div>
 						<h2><?php esc_html_e( 'Single Product Page Injection', 'mds-woocommerce-integration' ); ?></h2>
 						<p class="description">
-							<?php esc_html_e( 'Drag chips directly onto slots in the Single Product Blueprint or use the Up / Down controls to position each component. Works on both Block Themes and Classic WooCommerce themes.', 'mds-woocommerce-integration' ); ?>
+							<?php esc_html_e( 'Add any registered MDS block (including Bandcamp blocks when active), then drag chips onto slots in the Single Product Blueprint or use the Up / Down controls to position them. Works on both Block Themes and Classic WooCommerce themes.', 'mds-woocommerce-integration' ); ?>
 						</p>
 					</div>
 				</div>
 
 				<div class="mds-wc-designer-grid">
 					<div class="mds-wc-designer-controls">
-						<?php
-						self::render_control_card(
-							'meta',
-							'mds-wc-release-meta-placement',
-							'release_meta_placement',
-							$settings['release_meta_placement'],
-							'RM',
-							__( 'Release Meta', 'mds-woocommerce-integration' ),
-							'[release-meta]',
-							__( 'Year, label, distributor, UPC/EAN, and format resolved from the product GTIN/UPC or SKU.', 'mds-woocommerce-integration' )
-						);
+						<div class="mds-wc-add-block-bar">
+							<label for="mds-wc-add-block-select" class="screen-reader-text">
+								<?php esc_html_e( 'Select an MDS block to add', 'mds-woocommerce-integration' ); ?>
+							</label>
+							<select id="mds-wc-add-block-select" class="mds-wc-add-block-bar__select">
+								<?php foreach ( $grouped_blocks as $group_label => $group_items ) : ?>
+									<optgroup label="<?php echo esc_attr( $group_label ); ?>">
+										<?php foreach ( $group_items as $block ) : ?>
+											<option value="<?php echo esc_attr( $block['name'] ); ?>">
+												<?php echo esc_html( $block['title'] ); ?>
+											</option>
+										<?php endforeach; ?>
+									</optgroup>
+								<?php endforeach; ?>
+							</select>
+							<button type="button" id="mds-wc-add-block-btn" class="button button-secondary">
+								<?php esc_html_e( '+ Add Block', 'mds-woocommerce-integration' ); ?>
+							</button>
+						</div>
 
-						self::render_control_card(
-							'links',
-							'mds-wc-release-links-placement',
-							'release_links_placement',
-							$settings['release_links_placement'],
-							'RL',
-							__( 'Release Links', 'mds-woocommerce-integration' ),
-							'[release-links]',
-							__( 'Streaming links and the configured audio preview player for the linked release.', 'mds-woocommerce-integration' ),
-							$links_extra_html
-						);
-
-						self::render_control_card(
-							'custom',
-							'mds-wc-custom-placement',
-							'custom_placement',
-							$settings['custom_placement'],
-							'CS',
-							__( 'Custom Shortcode / Block', 'mds-woocommerce-integration' ),
-							'[custom]',
-							__( 'Optional shortcode or serialized Gutenberg block markup rendered at the selected slot.', 'mds-woocommerce-integration' ),
-							$custom_extra_html
-						);
-						?>
+						<div id="mds-wc-block-cards" class="mds-wc-block-cards" aria-live="polite"></div>
 
 						<?php settings_fields( self::OPTION_GROUP ); ?>
 						<div class="mds-admin-save-actions mds-wc-form-actions">
@@ -510,14 +665,19 @@ final class SiteSettings {
 
 						<div class="mds-wc-blueprint__canvas">
 							<div class="mds-wc-blueprint__top">
-								<div class="mds-wc-wire-gallery" aria-hidden="true">
-									<span class="dashicons dashicons-format-image"></span>
-									<span><?php esc_html_e( 'Product Gallery', 'mds-woocommerce-integration' ); ?></span>
+								<div class="mds-wc-wire-gallery-col">
+									<div class="mds-wc-wire-gallery" aria-hidden="true">
+										<span class="dashicons dashicons-format-image"></span>
+										<span><?php esc_html_e( 'Product Gallery', 'mds-woocommerce-integration' ); ?></span>
+									</div>
+
+									<div class="mds-wc-slot" data-slot="woocommerce_before_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Product Gallery', 'mds-woocommerce-integration' ); ?>">
+										<div class="mds-wc-slot__chips"></div>
+									</div>
 								</div>
 
 								<div class="mds-wc-wire-summary">
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:5">
-										<span class="mds-wc-slot__label"><?php esc_html_e( 'Above Product Title', 'mds-woocommerce-integration' ); ?></span>
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:5" data-slot-label="<?php esc_attr_e( 'Above Product Title', 'mds-woocommerce-integration' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
@@ -525,12 +685,15 @@ final class SiteSettings {
 										<?php esc_html_e( 'Product Title', 'mds-woocommerce-integration' ); ?>
 									</div>
 
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:6" data-slot-label="<?php esc_attr_e( 'Below Product Title', 'mds-woocommerce-integration' ); ?>">
+										<div class="mds-wc-slot__chips"></div>
+									</div>
+
 									<div class="mds-wc-wire-block mds-wc-wire-block--price" aria-hidden="true">
 										<?php esc_html_e( '$19.99', 'mds-woocommerce-integration' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:15">
-										<span class="mds-wc-slot__label"><?php esc_html_e( 'Below Price', 'mds-woocommerce-integration' ); ?></span>
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Price', 'mds-woocommerce-integration' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
@@ -540,8 +703,7 @@ final class SiteSettings {
 										<span class="mds-wc-wire-line is-short"></span>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:25">
-										<span class="mds-wc-slot__label"><?php esc_html_e( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ); ?></span>
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
@@ -549,8 +711,7 @@ final class SiteSettings {
 										<?php esc_html_e( 'Add to Cart', 'mds-woocommerce-integration' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:45">
-										<span class="mds-wc-slot__label"><?php esc_html_e( 'Below Add to Cart', 'mds-woocommerce-integration' ); ?></span>
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:45" data-slot-label="<?php esc_attr_e( 'Below Add to Cart', 'mds-woocommerce-integration' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
@@ -558,11 +719,14 @@ final class SiteSettings {
 										<?php esc_html_e( 'SKU · Categories · Tags', 'mds-woocommerce-integration' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:10">
-										<span class="mds-wc-slot__label"><?php esc_html_e( 'Below Product Summary', 'mds-woocommerce-integration' ); ?></span>
+									<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:10" data-slot-label="<?php esc_attr_e( 'Below Product Summary', 'mds-woocommerce-integration' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 								</div>
+							</div>
+
+							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:12" data-slot-label="<?php esc_attr_e( 'Above Product Description / Tabs', 'mds-woocommerce-integration' ); ?>">
+								<div class="mds-wc-slot__chips"></div>
 							</div>
 
 							<div class="mds-wc-wire-block mds-wc-wire-block--tabs" aria-hidden="true">
@@ -571,13 +735,12 @@ final class SiteSettings {
 								<span class="mds-wc-wire-line is-short"></span>
 							</div>
 
-							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:15">
-								<span class="mds-wc-slot__label"><?php esc_html_e( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ); ?></span>
+							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ); ?>">
 								<div class="mds-wc-slot__chips"></div>
 							</div>
 
-							<div class="mds-wc-slot mds-wc-slot--disabled-tray" data-slot="disabled">
-								<span class="mds-wc-slot__label"><?php esc_html_e( 'Inactive / Disabled (drag onto any slot above to enable)', 'mds-woocommerce-integration' ); ?></span>
+							<div class="mds-wc-slot mds-wc-slot--disabled-tray" data-slot="disabled" data-slot-label="<?php esc_attr_e( 'Disable Block', 'mds-woocommerce-integration' ); ?>">
+								<span class="mds-wc-slot__tray-label"><?php esc_html_e( 'Inactive / Disabled', 'mds-woocommerce-integration' ); ?></span>
 								<div class="mds-wc-slot__chips"></div>
 							</div>
 						</div>
