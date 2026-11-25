@@ -303,14 +303,120 @@
 	}
 
 	/**
+	 * Render or clear the Release-to-Product drift panel and badge on a Store Card.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param {HTMLElement} card  Store Card section element.
+	 * @param {Object|null} drift Drift report payload (`{ has_drift, count, items }`).
+	 */
+	function renderDriftState( card, drift ) {
+		const items = drift && Array.isArray( drift.items ) ? drift.items : [];
+		const hasDrift = items.length > 0;
+		const driftBadge = card.querySelector( '[data-role="drift-badge"]' );
+		const driftPanel = card.querySelector( '.mds-wc-drift-panel' );
+		const driftList = card.querySelector( '.mds-wc-drift-list' );
+
+		card.classList.toggle( 'has-drift', hasDrift );
+
+		if ( driftBadge ) {
+			driftBadge.hidden = ! hasDrift;
+		}
+
+		if ( ! driftPanel || ! driftList ) {
+			return;
+		}
+
+		driftList.innerHTML = '';
+
+		if ( ! hasDrift ) {
+			driftPanel.hidden = true;
+			return;
+		}
+
+		items.forEach( ( item ) => {
+			const li = document.createElement( 'li' );
+			li.className = 'mds-wc-drift-item';
+
+			const label = document.createElement( 'label' );
+			label.className = 'mds-wc-drift-item__label';
+
+			const checkbox = document.createElement( 'input' );
+			checkbox.type = 'checkbox';
+			checkbox.className = 'mds-wc-drift-checkbox';
+			checkbox.value = item.field || '';
+			checkbox.checked = true;
+
+			const textWrap = document.createElement( 'span' );
+			textWrap.className = 'mds-wc-drift-item__text';
+
+			const strong = document.createElement( 'strong' );
+			strong.textContent = `${ item.label || item.field || '' }: `;
+
+			const diff = document.createElement( 'span' );
+			diff.className = 'mds-wc-drift-diff';
+
+			const fromEl = document.createElement( 'span' );
+			fromEl.className = 'mds-wc-drift-diff__from';
+			fromEl.textContent = item.product_value || '';
+
+			const arrowEl = document.createElement( 'span' );
+			arrowEl.className = 'mds-wc-drift-diff__arrow';
+			arrowEl.setAttribute( 'aria-hidden', 'true' );
+			arrowEl.textContent = ' → ';
+
+			const toEl = document.createElement( 'span' );
+			toEl.className = 'mds-wc-drift-diff__to';
+			toEl.textContent = item.release_value || '';
+
+			diff.appendChild( fromEl );
+			diff.appendChild( arrowEl );
+			diff.appendChild( toEl );
+
+			textWrap.appendChild( strong );
+			textWrap.appendChild( diff );
+
+			label.appendChild( checkbox );
+			label.appendChild( textWrap );
+			li.appendChild( label );
+
+			if ( 'upc' === item.field && item.sku_option && item.sku_option.available ) {
+				const subLabel = document.createElement( 'label' );
+				subLabel.className = 'mds-wc-drift-item__sub';
+
+				const skuCheck = document.createElement( 'input' );
+				skuCheck.type = 'checkbox';
+				skuCheck.className = 'mds-wc-drift-checkbox';
+				skuCheck.value = 'sku';
+				skuCheck.checked = true;
+
+				const skuSpan = document.createElement( 'span' );
+				const template = messages.driftSkuOption || 'Also update SKU (%1$s → %2$s)';
+				skuSpan.textContent = template
+					.replace( '%1$s', item.sku_option.current_sku || '' )
+					.replace( '%2$s', item.sku_option.new_sku || '' );
+
+				subLabel.appendChild( skuCheck );
+				subLabel.appendChild( skuSpan );
+				li.appendChild( subLabel );
+			}
+
+			driftList.appendChild( li );
+		} );
+
+		driftPanel.hidden = false;
+	}
+
+	/**
 	 * Update a Store Card DOM into its Linked state.
 	 *
 	 * @since 1.0.1
 	 *
 	 * @param {HTMLElement} card    Store Card section element.
 	 * @param {Object}      product Normalized product summary payload.
+	 * @param {Object|null} drift   Optional drift report payload.
 	 */
-	function renderLinkedState( card, product ) {
+	function renderLinkedState( card, product, drift = null ) {
 		card.classList.remove( 'is-unlinked' );
 		card.classList.add( 'is-linked' );
 
@@ -363,6 +469,13 @@
 				metaEl.appendChild( priceEl );
 			}
 
+			if ( product.gtin ) {
+				const gtinEl = document.createElement( 'span' );
+				gtinEl.className = 'mds-wc-product-summary__gtin';
+				gtinEl.textContent = `${ messages.gtinPrefix || 'GTIN:' } ${ product.gtin }`;
+				metaEl.appendChild( gtinEl );
+			}
+
 			if ( product.sku ) {
 				const skuEl = document.createElement( 'span' );
 				skuEl.className = 'mds-wc-product-summary__sku';
@@ -406,6 +519,10 @@
 			cancelBtn.hidden = true;
 		}
 
+		if ( null !== drift ) {
+			renderDriftState( card, drift );
+		}
+
 		const wrapper = card.closest( '.mds-wc-linker-wrapper' );
 		if ( wrapper ) {
 			syncBuyNowButtonState( wrapper );
@@ -447,6 +564,8 @@
 		if ( searchInput ) {
 			searchInput.value = '';
 		}
+
+		renderDriftState( card, null );
 
 		const wrapper = card.closest( '.mds-wc-linker-wrapper' );
 		if ( wrapper ) {
@@ -508,7 +627,7 @@
 				} );
 
 				if ( response && response.success && response.product ) {
-					renderLinkedState( card, response.product );
+					renderLinkedState( card, response.product, response.drift || { items: [] } );
 					showNotice( noticeEl, messages.linked, 'success' );
 				}
 			} catch ( err ) {
@@ -741,6 +860,65 @@
 				openModalForCb( card, createBtn );
 			} );
 		}
+
+		const syncDriftBtn = card.querySelector( '.mds-wc-action-sync-drift' );
+		if ( syncDriftBtn && config.syncProductUrl ) {
+			syncDriftBtn.addEventListener( 'click', async () => {
+				const selectedFields = Array.from(
+					card.querySelectorAll( '.mds-wc-drift-checkbox:checked' )
+				)
+					.map( ( input ) => input.value )
+					.filter( Boolean );
+
+				if ( ! selectedFields.length ) {
+					showNotice(
+						noticeEl,
+						messages.driftSelectOne || 'Select at least one field to update.',
+						'error'
+					);
+					return;
+				}
+
+				syncDriftBtn.disabled = true;
+				syncDriftBtn.textContent = messages.driftSyncing || 'Updating product…';
+				speak( messages.driftSyncing || 'Updating product…', 'polite' );
+
+				try {
+					const response = await restRequest( config.syncProductUrl, {
+						method: 'POST',
+						body: {
+							store_id: storeId,
+							release_id: releaseId,
+							fields: selectedFields,
+						},
+					} );
+
+					if ( response && response.success && response.product ) {
+						renderLinkedState(
+							card,
+							response.product,
+							response.drift || { items: [] }
+						);
+						const warnings = Array.isArray( response.warnings )
+							? response.warnings.filter( Boolean )
+							: [];
+						const message = warnings.length
+							? `${ messages.driftSynced || 'Product updated.' } ${ warnings.join( ' ' ) }`
+							: messages.driftSynced || 'Selected fields updated on the WooCommerce product.';
+						showNotice( noticeEl, message, warnings.length ? 'error' : 'success' );
+					}
+				} catch ( err ) {
+					showNotice(
+						noticeEl,
+						err.message || messages.driftSyncError,
+						'error'
+					);
+				} finally {
+					syncDriftBtn.disabled = false;
+					syncDriftBtn.textContent = messages.driftSyncBtn || 'Update Product';
+				}
+			} );
+		}
 	}
 
 	/**
@@ -899,7 +1077,7 @@
 					} );
 
 					if ( response && response.success && response.product ) {
-						renderLinkedState( activeCard, response.product );
+						renderLinkedState( activeCard, response.product, response.drift || { items: [] } );
 						closeModal();
 						showNotice( noticeEl, messages.created, 'success' );
 					}

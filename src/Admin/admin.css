@@ -1093,3 +1093,99 @@
 	color: #705000;
 	border: 1px solid #dba617;
 }
+
+.mds-wc-store-card__badges {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.mds-wc-badge--drift {
+	background: #fcf0c3;
+	color: #705000;
+	border: 1px solid #dba617;
+}
+
+.mds-wc-store-card.has-drift {
+	border-color: #dba617;
+}
+
+.mds-wc-drift-panel {
+	margin: 12px 0;
+	padding: 10px 12px;
+	background: #fcf9e8;
+	border: 1px solid #dba617;
+	border-left: 4px solid #dba617;
+	border-radius: 3px;
+}
+
+.mds-wc-drift-panel__header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 8px;
+	color: #705000;
+	font-size: 13px;
+}
+
+.mds-wc-drift-panel__header .dashicons {
+	font-size: 17px;
+	width: 17px;
+	height: 17px;
+	color: #996800;
+}
+
+.mds-wc-drift-list {
+	margin: 0 0 10px;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mds-wc-drift-item__label {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	font-size: 12px;
+	line-height: 1.45;
+	color: #1d2327;
+	cursor: pointer;
+}
+
+.mds-wc-drift-item__label input[type="checkbox"] {
+	margin-top: 2px;
+}
+
+.mds-wc-drift-diff__from {
+	color: #646970;
+	text-decoration: line-through;
+}
+
+.mds-wc-drift-diff__arrow {
+	color: #646970;
+	margin: 0 3px;
+}
+
+.mds-wc-drift-diff__to {
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.mds-wc-drift-item__sub {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 4px 0 0 22px;
+	font-size: 12px;
+	color: #50575e;
+	cursor: pointer;
+}
+
+.mds-wc-drift-panel__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}

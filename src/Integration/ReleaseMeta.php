@@ -16,6 +16,7 @@ use MDS\WooCommerce\Support\StoreRegistry;
 use WC_Product;
 use WP_Block;
 use WP_Block_Type_Registry;
+use WP_Post;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -46,12 +47,12 @@ final class ReleaseMeta {
 	private static ?bool $is_eligible_store = null;
 
 	/**
-	 * Per-request cache of linked shadow release UPCs keyed by local WooCommerce product ID.
+	 * Per-request cache of explicitly linked shadow Release posts keyed by local WooCommerce product ID.
 	 *
 	 * @since 2.1.0
-	 * @var array<int, string>
+	 * @var array<int, WP_Post|null>
 	 */
-	private static array $linked_upc_cache = array();
+	private static array $linked_post_cache = array();
 
 	/**
 	 * Classic WooCommerce action/priority map keyed by placement identifier.
@@ -134,6 +135,7 @@ final class ReleaseMeta {
 		add_filter( 'mds_rm_sync_target_sites', array( self::class, 'sync_targets' ), 10, 3 );
 		add_filter( 'mds_rm_spoke_protected_meta_keys', array( self::class, 'protect_spoke_meta_keys' ), 10, 2 );
 		add_action( 'mds_rm_after_shadow_sync', array( self::class, 'map_product' ), 10, 5 );
+		add_filter( 'mds_rm_release_context_post', array( self::class, 'context_post' ), 10, 2 );
 		add_filter( 'mds_rm_release_meta_context_upc', array( self::class, 'context_upc' ), 10, 2 );
 		add_action( 'mds_rm_after_buy_now_field', array( self::class, 'buy_now_button' ) );
 		add_filter( 'mds_rm_default_media_formats', array( self::class, 'register_default_media_formats' ) );
@@ -262,49 +264,60 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Resolve a WooCommerce product's linked Release UPC (via `_mds_local_product_id`),
-	 * falling back to its GTIN/UPC/EAN or numeric SKU for Release Meta / Links / Player context.
+	 * Resolve a WooCommerce product directly to its explicitly linked shadow Release post
+	 * via `_mds_local_product_id`, completely independent of UPC or SKU values.
 	 *
-	 * @since 1.0.1
+	 * @since 2.1.0
 	 *
-	 * @param mixed $upc     Existing UPC string.
-	 * @param int   $post_id Current post ID.
-	 * @return mixed Resolved UPC or original value.
+	 * @param mixed $resolved_post Existing resolved Release post, if any.
+	 * @param int   $post_id       Current context post ID.
+	 * @return WP_Post|null Explicitly linked Release post, or original value.
 	 */
-	public static function context_upc( mixed $upc, int $post_id ): mixed {
-		if ( '' !== (string) $upc || ! function_exists( 'wc_get_product' ) || 'product' !== get_post_type( $post_id ) ) {
-			return $upc;
+	public static function context_post( mixed $resolved_post, int $post_id ): ?WP_Post {
+		if ( $resolved_post instanceof WP_Post ) {
+			return $resolved_post;
 		}
 
-		// 1. Prefer an explicit `_mds_local_product_id` link on a local shadow Release.
-		if ( ! array_key_exists( $post_id, self::$linked_upc_cache ) ) {
-			$linked_upc = '';
-			$linked_ids = get_posts(
+		if ( $post_id <= 0 || ! function_exists( 'wc_get_product' ) || 'product' !== get_post_type( $post_id ) ) {
+			return null;
+		}
+
+		if ( ! array_key_exists( $post_id, self::$linked_post_cache ) ) {
+			$linked_posts = get_posts(
 				array(
 					'post_type'              => 'release',
 					'post_status'            => 'publish',
 					'posts_per_page'         => 1,
-					'fields'                 => 'ids',
 					'no_found_rows'          => true,
 					'update_post_term_cache' => false,
 					'meta_key'               => '_mds_local_product_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Memoized lookup for the explicitly linked shadow Release.
 					'meta_value'             => (string) $post_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Memoized lookup for the explicitly linked shadow Release.
 				)
 			);
-			if ( ! empty( $linked_ids ) ) {
-				$raw_upc = get_post_meta( (int) $linked_ids[0], 'upc_ean', true );
-				if ( is_scalar( $raw_upc ) ) {
-					$linked_upc = trim( (string) $raw_upc );
-				}
-			}
-			self::$linked_upc_cache[ $post_id ] = $linked_upc;
+
+			self::$linked_post_cache[ $post_id ] = ( ! empty( $linked_posts ) && $linked_posts[0] instanceof WP_Post )
+				? $linked_posts[0]
+				: null;
 		}
 
-		if ( '' !== self::$linked_upc_cache[ $post_id ] ) {
-			return self::$linked_upc_cache[ $post_id ];
+		return self::$linked_post_cache[ $post_id ];
+	}
+
+	/**
+	 * Fallback context resolver for unlinked WooCommerce products using WooCommerce's
+	 * GTIN/UPC/EAN (`_global_unique_id`) field only (SKU matching is intentionally disabled).
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param mixed $upc     Existing UPC string.
+	 * @param int   $post_id Current post ID.
+	 * @return mixed Resolved GTIN/UPC or original value.
+	 */
+	public static function context_upc( mixed $upc, int $post_id ): mixed {
+		if ( '' !== (string) $upc || ! function_exists( 'wc_get_product' ) || 'product' !== get_post_type( $post_id ) ) {
+			return $upc;
 		}
 
-		// 2. Fall back to WooCommerce product GTIN/UPC/EAN or numeric SKU.
 		$product = wc_get_product( $post_id );
 		if ( ! $product instanceof WC_Product ) {
 			return '';
@@ -317,9 +330,7 @@ final class ReleaseMeta {
 			}
 		}
 
-		$sku = (string) $product->get_sku();
-
-		return preg_match( '/^\d+$/D', $sku ) ? $sku : '';
+		return '';
 	}
 
 	/**

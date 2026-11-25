@@ -4,43 +4,55 @@ Tags: woocommerce, multisite, music, releases, sync
 Requires at least: 7.0
 Tested up to: 7.x
 Requires PHP: 8.0
-Stable tag: 1.0.1
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Stable tag: 2.0.0
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Extends MDS Release Manager with multisite WooCommerce product linking, Draft product seeding, and Release Meta injection.
+Extends MDS Release Manager with per-Artist multisite WooCommerce store targeting, product linking, selective drift sync, and Single Product Page block injection.
 
 == Description ==
 
-MDS WooCommerce Integration connects MDS Release Manager with WooCommerce stores across a WordPress multisite network using a clean **Seed & Hand Off** workflow:
+MDS WooCommerce Integration connects **MDS Release Manager** with one or more WooCommerce stores across a WordPress Multisite network (or single site) while keeping Store Admins in full control of their products:
 
-* Auto-detects active WooCommerce stores across your multisite network (cached) and lets you assign one or more target stores directly on each **Artist** in the Hub.
-* Search existing WooCommerce products (published or draft) and link or unlink them directly from Store Cards in the Release editor.
-* Seed new **Draft** WooCommerce products from a compact modal pre-filled with the Release's title, description, UPC/SKU, and featured artwork—plus optional short description, price, categories, and tags—without overwriting Store Admin edits later.
-* Automatically broadcast product links during hub-and-spoke sync and inject Release Meta, Release Links, or custom shortcodes/blocks on single WooCommerce product pages (configured per-site under **Releases -> Settings -> WooCommerce Integration**, supporting both Block Themes and Classic WooCommerce themes).
+* **Per-Artist WooCommerce Target Stores:** Automatically detects active WooCommerce stores across your multisite network (cached with stampede protection) and lets you assign target stores directly on each **Artist** in the Hub, with batched **Sync Artist Releases** support.
+* **Accessible Store Cards & Draft Seeding:** Search existing WooCommerce products (published or draft) and link/unlink them from the Hub Release editor, or seed a new **Draft** product pre-filled with the Release's title, description, UPC/GTIN, SKU, and virtual cover art.
+* **Direct Release–Product Context Resolution:** Explicitly linked products resolve directly to their linked shadow Release via `_mds_local_product_id` (100% immune to UPC or SKU changes), with unlinked products falling back to WooCommerce GTIN/UPC (`_global_unique_id`) only.
+* **Release-to-Product Drift Detection & Selective Sync:** Never auto-overwrites store products on Release save. Instead, Store Cards display an **Out of sync** badge when UPC/GTIN, Cover Art, or Product Title differ, letting admins selectively push approved fields (offering **Also update SKU** only when the product's SKU still matches the previous UPC, never clobbering custom SKUs).
+* **Single Product Page Block Injection:** Configure where **Release Meta**, **Release Links**, **Release Player**, or companion MDS blocks appear on Single Product pages under **Releases > Settings > WooCommerce Integration** (visible only on WooCommerce-active sites), supporting both Block Themes and Classic WooCommerce themes.
 
 == Installation ==
 
-1. Upload the `mds-woocommerce` folder to `/wp-content/plugins/`.
-2. Run `composer install` inside the plugin directory if installing from source.
-3. Activate **MDS Release Manager** and **MDS WooCommerce Integration** through the WordPress Plugins screen (or Network Activate on multisite).
-4. Open any **Artist** on the Hub site and select one or more auto-detected **WooCommerce Target Stores** (existing Artists are automatically backfilled from legacy network settings).
+1. Upload the `mds-woocommerce` folder to `/wp-content/plugins/`, or upload the release ZIP through **Plugins > Add New > Upload Plugin**.
+2. Activate **MDS Release Manager** and **MDS WooCommerce Integration** (or Network Activate on Multisite).
+3. On the Hub site, open any **Artist** and select one or more auto-detected **WooCommerce Target Stores** (existing Artists are automatically backfilled from legacy network settings).
+4. On any WooCommerce store site, go to **Releases > Settings > WooCommerce Integration** to customize Single Product Page block placements.
 
 == Frequently Asked Questions ==
 
 = Does this plugin require MDS Release Manager? =
 
-Yes. All admin screens, REST endpoints, and synchronization hooks remain dormant unless MDS Release Manager is active.
+Yes. All admin screens, REST endpoints, and synchronization hooks remain dormant unless MDS Release Manager (`2.0.0+`) is active.
 
-= Will editing a Release overwrite changes a Store Admin made to a WooCommerce product? =
+= Will editing a Release automatically overwrite changes a Store Admin made to a WooCommerce product? =
 
-No. Once a product is created or linked, the Store Admin owns the product. Updating a Release never overwrites the store product.
+No. Updating a Release never auto-overwrites linked products. If UPC/GTIN, Cover Art, or Title differ, the Release's Store Card displays an **Out of sync** checklist so you can choose exactly which fields to push.
+
+= What happens if I change a Release's UPC after linking a product? =
+
+Injected Single Product Page blocks continue working immediately because explicitly linked products resolve directly by their `_mds_local_product_id` link rather than SKU. You can then push the updated GTIN (and optionally SKU, if it still matched the old UPC) from the Store Card.
 
 = Can I override the admin templates in my theme? =
 
 Yes. Place custom template overrides inside your theme at `mds-woocommerce/<template-name>.php`.
 
 == Changelog ==
+
+= 2.0.0 =
+* Renamed plugin slug and text domain to `mds-woocommerce` with full Composer PSR-4 architecture (`MDS\WooCommerce\`), `uninstall.php`, and `wpml-config.xml`.
+* Replaced global network store checkboxes with **Per-Artist WooCommerce Target Stores** (`_mds_wc_target_stores`), cached network store auto-detection with stampede protection, and batched **Sync Artist Releases** (`POST /mds-wc/v1/artists/{id}/sync-releases`).
+* Added **Direct Release–Product Context Resolution** (`mds_rm_release_context_post`) via `_mds_local_product_id` (immune to UPC/SKU changes) and dropped numeric SKU fallback for unlinked products (GTIN-only).
+* Added **Release-to-Product Drift Detection & Selective Sync** (`ProductDrift`, `POST /mds-wc/v1/sync-product`) with an **Out of sync** Store Card badge, per-field checklist (UPC/GTIN, Cover Art, Title), server-side custom-SKU protection, duplicate-SKU collision checks, and `wc_product_meta_lookup` synchronization.
+* Restricted the **Releases > Settings > WooCommerce Integration** tab to WooCommerce-active sites only, and updated fresh-activation default placements (**Release Meta** below title; **Release Links** with *Hide Buy Now* enabled + **Release Player** below short description).
 
 = 1.0.1 =
 * Adopted a fire-and-forget **Seed & Hand Off** architecture: replaced `save_post` product overwriting with instant REST linking/unlinking (`/link`) and a compact native `<dialog>` Create Product modal (`/generate`, `/taxonomies`) defaulting to `Draft` status.

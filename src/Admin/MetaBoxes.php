@@ -12,6 +12,7 @@ namespace MDS\WooCommerce\Admin;
 
 use MDS\WooCommerce\Plugin;
 use MDS\WooCommerce\Rest\RestApi;
+use MDS\WooCommerce\Support\ProductDrift;
 use MDS\WooCommerce\Support\StoreRegistry;
 use MDS\WooCommerce\Support\TemplateRenderer;
 use WP_Post;
@@ -198,8 +199,8 @@ final class MetaBoxes {
 		$sites = array();
 		if ( ! $is_auto_draft ) {
 			$sites = array_merge(
-				self::get_store_card_data( $assigned_stores, $linked_products, false ),
-				self::get_store_card_data( $legacy_stores, $linked_products, true )
+				self::get_store_card_data( $post, $assigned_stores, $linked_products, false ),
+				self::get_store_card_data( $post, $legacy_stores, $linked_products, true )
 			);
 		}
 
@@ -220,19 +221,20 @@ final class MetaBoxes {
 	}
 
 	/**
-	 * Prepare store card metadata and linked product summary for each store.
+	 * Prepare store card metadata, linked product summary, and drift report for each store.
 	 *
 	 * Uses cached StoreRegistry metadata (0 extra get_blog_details calls) and only
 	 * switches blogs when a store actually has a linked product ID.
 	 *
 	 * @since 1.1.0
 	 *
+	 * @param WP_Post           $release         Hub Release post object.
 	 * @param array<int, int>   $store_ids       Store site IDs.
 	 * @param array<int, mixed> $linked_products Product IDs linked by store.
 	 * @param bool              $is_unassigned   Whether these stores are no longer assigned to the Artist.
 	 * @return array<int, array<string, mixed>> Store card payloads for templates.
 	 */
-	private static function get_store_card_data( array $store_ids, array $linked_products, bool $is_unassigned ): array {
+	private static function get_store_card_data( WP_Post $release, array $store_ids, array $linked_products, bool $is_unassigned ): array {
 		$available = StoreRegistry::get_available_stores();
 		$sites     = array();
 
@@ -255,12 +257,21 @@ final class MetaBoxes {
 				continue;
 			}
 
+			$drift = is_array( $product )
+				? ProductDrift::detect( $release, $product, $store_id )
+				: array(
+					'has_drift' => false,
+					'count'     => 0,
+					'items'     => array(),
+				);
+
 			$sites[] = array(
 				'store_id'      => $store_id,
 				'store_name'    => $store_name,
 				'store_url'     => $store_url,
 				'product_id'    => $product ? (int) $product['id'] : 0,
 				'product'       => $product,
+				'drift'         => $drift,
 				'is_unassigned' => $is_unassigned,
 			);
 		}

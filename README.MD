@@ -1,57 +1,43 @@
 # MDS WooCommerce Integration
 
-Extends **MDS Release Manager** with a **Seed & Hand Off** multisite WooCommerce workflow: Hub editors link existing WooCommerce products or seed new Draft products on integrated stores via a compact modal dialog, while Store Admins retain full ownership of store products after creation.
+Companion plugin for **MDS Release Manager** that connects your Hub music catalog with WooCommerce stores across single-site and WordPress Multisite networks.
 
-## Requirements
+- **Version:** `2.0.0`
+- **Requires:** WordPress `7.0+` (Tested up to `7.x`) · PHP `8.0+` · **MDS Release Manager `2.0.0+`** · WooCommerce
+- **License:** GPL-2.0-or-later
 
-- **WordPress:** 7.0+ (Tested up to 7.x)
-- **PHP:** 8.0+
-- **Dependencies:** MDS Release Manager and WooCommerce (on integrated store sites)
+> End-user and site-admin guide: [USER-MANUAL.md](USER-MANUAL.md)  
+> Version history: [changelog.md](changelog.md)  
+> Technical architecture & contracts: [.agents/technical-blueprint.md](.agents/technical-blueprint.md)
 
-## Architecture
+---
 
-This plugin uses a Composer PSR-4 architecture under the `MDS\WooCommerce\` namespace (`src/`) alongside a lightweight WordPress bootstrap (`mds-woocommerce.php`) and thin procedural template helpers (`includes/helpers.php`).
+## Highlights
 
-- `MDS\WooCommerce\Plugin` — Bootstraps all services on `plugins_loaded`, wires `StoreRegistry` and `MDS_RM_Cache`, and enforces two-layer delegated Hub-to-Spoke permissions.
-- `MDS\WooCommerce\Support\StoreRegistry` — Auto-detects active WooCommerce stores across the network (cached in a network transient), resolves per-Artist and per-Release target stores with per-request memoization, and runs a one-time backfill for existing Hub Artists.
-- `MDS\WooCommerce\Admin\Assets` — Conditionally enqueues zero-CDN admin scripts/styles (using `@wordpress/scripts` `build/*.asset.php` manifests when present, with fallback to `src/admin/`).
-- `MDS\WooCommerce\Admin\MetaBoxes` — Renders the **WooCommerce Target Stores** meta box on Hub `artist` posts and WooCommerce Store Cards (including **Unassigned Store** cards) + native `<dialog>` Create Product modal on Hub `release` posts.
-- `MDS\WooCommerce\Admin\SiteSettings` — Registers the **Releases -> Settings -> WooCommerce Integration** visual single-product layout tab.
-- `MDS\WooCommerce\Integration\ReleaseMeta` — Scopes Release Manager shadow sync to each Artist's target stores and injects configured MDS blocks on single WooCommerce product pages (Block & Classic themes).
-- `MDS\WooCommerce\Rest\RestApi` — Exposes `/wp-json/mds-wc/v1/*` endpoints (`/settings`, `/stores/refresh`, `/artists/{id}/sync-releases`, `/search`, `/link`, `/taxonomies`, `/generate`) with `mds-woo/v1` backward-compatible aliases.
-- `MDS\WooCommerce\Support\TemplateRenderer` — Safely renders templates from `templates/` with theme overrides in `mds-woocommerce/`.
+- **Per-Artist WooCommerce Target Stores:** Assign target WooCommerce stores directly on each Hub **Artist** (`_mds_wc_target_stores`) with auto-detected, cached store discovery and batched **Sync Artist Releases**.
+- **Accessible Store Cards & Draft Seeding:** Search existing products, link/unlink instantly via REST, or seed new **Draft** WooCommerce products with virtual cover art without duplicating media files.
+- **Direct Release–Product Link Resolution:** Linked products resolve directly to their shadow Release via `_mds_local_product_id` (`mds_rm_release_context_post`) — immune to UPC/SKU changes — with unlinked products falling back to WooCommerce GTIN/UPC only.
+- **Drift Detection & Selective Sync:** Store Cards detect **UPC/GTIN**, **Cover Art**, and **Product Title** differences without auto-overwriting Store Admin edits, letting admins selectively push approved fields with built-in custom-SKU protection and `wc_product_meta_lookup` synchronization.
+- **Single Product Page Block Injection:** Visual drag-and-drop placement designer under **Releases → Settings → WooCommerce Integration** (WooCommerce-active sites only) supporting Block Themes and Classic WooCommerce themes.
 
-## Developer Setup
+---
 
-1. **Install PHP dependencies & generate autoloader:**
-   ```bash
-   composer install
-   ```
-2. **Install frontend build/lint dependencies and compile assets** (requires Node.js & npm):
-   ```bash
-   npm install
-   npm run build
-   ```
-   During development, run `npm start` for watch mode.
+## Local Development
 
-## Code Quality & Testing
+```bash
+# Install PHP dependencies and WPCS 3 / PHPCompatibilityWP
+composer install
 
-- **WordPress Coding Standards & PHP 8.0 compatibility:**
-  ```bash
-  composer phpcs
-  composer phpcbf
-  ```
-- **JavaScript & CSS linting:**
-  ```bash
-  npm run lint:js
-  npm run lint:css
-  npm run format
-  ```
-- **Standalone PHP unit check:**
-  ```bash
-  php tests/store-registry.php
-  ```
+# Run WPCS & PHP 8.0 compatibility checks
+composer phpcs
+composer phpcbf
 
-## LocalWP Environment
+# Run standalone PHP unit tests
+php tests/store-registry.php
 
-Configured for the LocalWP site at `C:\Users\Brian\Local Sites\bgw-dev\app\public` (`http://bgw-dev.local/`). Activate both **MDS Release Manager** and **MDS WooCommerce Integration**, then open any **Artist** on the Hub site to assign one or more auto-detected **WooCommerce Target Stores**.
+# Optional JS/CSS build & lint (Node 22+)
+npm install
+npm run lint:js
+npm run lint:css
+npm run build
+```

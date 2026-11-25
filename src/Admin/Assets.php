@@ -279,13 +279,14 @@ final class Assets {
 		}
 
 		$config = array(
-			'searchUrl'     => esc_url_raw( rest_url( 'mds-wc/v1/search' ) ),
-			'linkUrl'       => esc_url_raw( rest_url( 'mds-wc/v1/link' ) ),
-			'generateUrl'   => esc_url_raw( rest_url( 'mds-wc/v1/generate' ) ),
-			'taxonomiesUrl' => esc_url_raw( rest_url( 'mds-wc/v1/taxonomies' ) ),
-			'nonce'         => wp_create_nonce( 'wp_rest' ),
-			'release'       => $release_seed,
-			'messages'      => array(
+			'searchUrl'      => esc_url_raw( rest_url( 'mds-wc/v1/search' ) ),
+			'linkUrl'        => esc_url_raw( rest_url( 'mds-wc/v1/link' ) ),
+			'generateUrl'    => esc_url_raw( rest_url( 'mds-wc/v1/generate' ) ),
+			'taxonomiesUrl'  => esc_url_raw( rest_url( 'mds-wc/v1/taxonomies' ) ),
+			'syncProductUrl' => esc_url_raw( rest_url( 'mds-wc/v1/sync-product' ) ),
+			'nonce'          => wp_create_nonce( 'wp_rest' ),
+			'release'        => $release_seed,
+			'messages'       => array(
 				'searching'          => __( 'Searching store products…', 'mds-woocommerce' ),
 				'noResults'          => __( 'No matching products found on this store.', 'mds-woocommerce' ),
 				'searchError'        => __( 'Unable to search products on this store.', 'mds-woocommerce' ),
@@ -314,9 +315,19 @@ final class Assets {
 				'createNew'          => __( 'Create Product', 'mds-woocommerce' ),
 				'cancel'             => __( 'Cancel', 'mds-woocommerce' ),
 				'skuPrefix'          => __( 'SKU:', 'mds-woocommerce' ),
+				'gtinPrefix'         => __( 'GTIN:', 'mds-woocommerce' ),
 				'allFormatLabel'     => __( 'All', 'mds-woocommerce' ),
 				'buyNowAdded'        => __( 'Added linked WooCommerce product URL to Buy Now formats.', 'mds-woocommerce' ),
 				'buyNowExists'       => __( 'All linked published WooCommerce product URLs are already listed in Buy Now.', 'mds-woocommerce' ),
+				'outOfSync'          => __( 'Out of sync', 'mds-woocommerce' ),
+				'driftHeading'       => __( 'Product differs from this Release', 'mds-woocommerce' ),
+				'driftSyncBtn'       => __( 'Update Product', 'mds-woocommerce' ),
+				'driftSyncing'       => __( 'Updating product…', 'mds-woocommerce' ),
+				'driftSynced'        => __( 'Selected fields updated on the WooCommerce product.', 'mds-woocommerce' ),
+				'driftSyncError'     => __( 'Unable to update the linked WooCommerce product.', 'mds-woocommerce' ),
+				'driftSelectOne'     => __( 'Select at least one field to update.', 'mds-woocommerce' ),
+				/* translators: 1: Current SKU value, 2: New UPC value. */
+				'driftSkuOption'     => __( 'Also update SKU (%1$s → %2$s)', 'mds-woocommerce' ),
 			),
 		);
 

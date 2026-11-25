@@ -183,7 +183,9 @@
 			const defaultPlacement =
 				'mds-rm/release-meta' === blockName
 					? 'woocommerce_single_product_summary:25'
-					: 'woocommerce_after_single_product_summary:15';
+					: 'mds-rm/release-player' === blockName
+						? 'woocommerce_single_product_summary:35'
+						: 'woocommerce_after_single_product_summary:15';
 
 			items.push( {
 				id: `item_${ Date.now() }_${ Math.floor( Math.random() * 1000 ) }`,

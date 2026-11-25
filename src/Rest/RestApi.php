@@ -12,6 +12,7 @@ namespace MDS\WooCommerce\Rest;
 
 use MDS\WooCommerce\Admin\SiteSettings;
 use MDS\WooCommerce\Plugin;
+use MDS\WooCommerce\Support\ProductDrift;
 use MDS\WooCommerce\Support\StoreRegistry;
 use WP_Error;
 use WP_Post;
@@ -117,6 +118,16 @@ final class RestApi {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'get_taxonomies' ),
+				'permission_callback' => $edit_posts_permission,
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/sync-product',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'sync_product' ),
 				'permission_callback' => $edit_posts_permission,
 			)
 		);
@@ -382,10 +393,20 @@ final class RestApi {
 		self::broadcast_release_link( $release_id );
 		Plugin::request_cache_purge( 'woocommerce_link', $store_id );
 
+		$release = get_post( $release_id );
+		$drift   = $release instanceof WP_Post
+			? ProductDrift::detect( $release, $summary, $store_id )
+			: array(
+				'has_drift' => false,
+				'count'     => 0,
+				'items'     => array(),
+			);
+
 		return rest_ensure_response(
 			array(
 				'success' => true,
 				'product' => $summary,
+				'drift'   => $drift,
 			)
 		);
 	}
@@ -618,6 +639,14 @@ final class RestApi {
 		self::broadcast_release_link( $release_id );
 		Plugin::request_cache_purge( 'woocommerce_generate', $store_id );
 
+		$drift = $release instanceof WP_Post
+			? ProductDrift::detect( $release, $summary, $store_id )
+			: array(
+				'has_drift' => false,
+				'count'     => 0,
+				'items'     => array(),
+			);
+
 		return rest_ensure_response(
 			array(
 				'success'       => true,
@@ -625,6 +654,136 @@ final class RestApi {
 				'product_title' => $seed_data['name'],
 				'permalink'     => $summary['permalink'] ?? '',
 				'product'       => $summary,
+				'drift'         => $drift,
+			)
+		);
+	}
+
+	/**
+	 * Selectively synchronize approved Hub Release fields (UPC/GTIN, optional SKU, Cover Art, Title)
+	 * to an already-linked WooCommerce product on the target store.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error REST response or error.
+	 */
+	public static function sync_product( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$store_id   = self::get_request_id( $request, 'store_id' );
+		$release_id = self::get_request_id( $request, 'release_id' );
+		$raw_fields = $request->get_param( 'fields' );
+
+		if ( ! $store_id || ! $release_id ) {
+			return new WP_Error(
+				'missing_data',
+				__( 'Missing Store ID or Release ID.', 'mds-woocommerce' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$fields = array();
+		if ( is_array( $raw_fields ) ) {
+			foreach ( $raw_fields as $field ) {
+				if ( is_scalar( $field ) ) {
+					$key = sanitize_key( (string) $field );
+					if ( in_array( $key, ProductDrift::ALLOWED_FIELDS, true ) ) {
+						$fields[] = $key;
+					}
+				}
+			}
+		}
+		$fields = array_values( array_unique( $fields ) );
+
+		if ( empty( $fields ) ) {
+			return new WP_Error(
+				'no_fields',
+				__( 'Select at least one field to update on the product.', 'mds-woocommerce' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$access_error = self::validate_release_and_store_access( $release_id, $store_id, true );
+		if ( is_wp_error( $access_error ) ) {
+			return $access_error;
+		}
+
+		$linked_products = get_post_meta( $release_id, '_mds_linked_products', true );
+		$product_id      = is_array( $linked_products ) && isset( $linked_products[ $store_id ] )
+			? absint( $linked_products[ $store_id ] )
+			: 0;
+
+		if ( $product_id <= 0 ) {
+			return new WP_Error(
+				'not_linked',
+				__( 'No linked WooCommerce product was found for this store.', 'mds-woocommerce' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$release = get_post( $release_id );
+		if ( ! $release instanceof WP_Post ) {
+			return new WP_Error(
+				'invalid_release',
+				__( 'Release not found.', 'mds-woocommerce' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$raw_upc      = get_post_meta( $release_id, 'upc_ean', true );
+		$hub_thumb_id = (int) get_post_thumbnail_id( $release_id );
+		$hub_img_url  = $hub_thumb_id > 0 ? (string) wp_get_attachment_url( $hub_thumb_id ) : '';
+
+		$payload = array(
+			'title'        => (string) $release->post_title,
+			'upc'          => is_scalar( $raw_upc ) ? trim( sanitize_text_field( (string) $raw_upc ) ) : '',
+			'hub_thumb_id' => $hub_thumb_id,
+			'hub_img_url'  => $hub_img_url,
+			'media_info'   => self::get_hub_thumbnail_info( $hub_thumb_id ),
+		);
+
+		$switched = is_multisite() && get_current_blog_id() !== $store_id;
+		if ( $switched ) {
+			switch_to_blog( $store_id );
+		}
+
+		try {
+			if ( ! Plugin::is_woocommerce_active_on_current_site() ) {
+				return new WP_Error(
+					'no_wc',
+					__( 'WooCommerce is not active on the selected site.', 'mds-woocommerce' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			self::register_product_types( false );
+			$product_post = get_post( $product_id );
+			if ( ! $product_post instanceof WP_Post || 'product' !== $product_post->post_type || 'trash' === $product_post->post_status ) {
+				return new WP_Error(
+					'invalid_product',
+					__( 'The linked product could not be found on the store.', 'mds-woocommerce' ),
+					array( 'status' => 404 )
+				);
+			}
+
+			$result       = ProductDrift::apply( $product_id, $payload, $fields );
+			$product_post = get_post( $product_id );
+			$summary      = $product_post instanceof WP_Post ? self::format_product_summary( $product_post ) : array();
+		} finally {
+			if ( $switched ) {
+				restore_current_blog();
+			}
+		}
+
+		Plugin::request_cache_purge( 'woocommerce_sync_product', $store_id );
+		$drift = ProductDrift::detect( $release, $summary, $store_id );
+
+		return rest_ensure_response(
+			array(
+				'success'        => true,
+				'product'        => $summary,
+				'drift'          => $drift,
+				'updated_fields' => $result['updated'],
+				'warnings'       => $result['warnings'],
 			)
 		);
 	}
@@ -911,7 +1070,7 @@ final class RestApi {
 	 * @param array<string, mixed> $media_info   Optional hub attachment metadata.
 	 * @return void
 	 */
-	private static function seed_product_thumbnail(
+	public static function seed_product_thumbnail(
 		int $product_id,
 		int $hub_thumb_id,
 		string $hub_img_url,
@@ -941,7 +1100,9 @@ final class RestApi {
 		}
 
 		if ( $virtual_attachment_id > 0 ) {
-			set_post_thumbnail( $product_id, $virtual_attachment_id );
+			if ( ! set_post_thumbnail( $product_id, $virtual_attachment_id ) ) {
+				update_post_meta( $product_id, '_thumbnail_id', $virtual_attachment_id );
+			}
 		}
 	}
 
@@ -1078,14 +1239,31 @@ final class RestApi {
 	 * @return array<string, mixed> Normalized product summary payload.
 	 */
 	public static function format_product_summary( WP_Post $product ): array {
-		$product_id    = (int) $product->ID;
-		$status        = (string) $product->post_status;
-		$permalink     = 'publish' === $status ? get_permalink( $product_id ) : '';
-		$can_edit      = current_user_can( 'edit_post', $product_id );
-		$edit_url      = $can_edit ? get_edit_post_link( $product_id, 'raw' ) : '';
-		$thumb_url     = get_the_post_thumbnail_url( $product_id, 'thumbnail' );
+		$product_id   = (int) $product->ID;
+		$status       = (string) $product->post_status;
+		$permalink    = 'publish' === $status ? get_permalink( $product_id ) : '';
+		$can_edit     = current_user_can( 'edit_post', $product_id );
+		$edit_url     = $can_edit ? get_edit_post_link( $product_id, 'raw' ) : '';
+		$thumbnail_id = (int) get_post_thumbnail_id( $product_id );
+		$thumb_url    = $thumbnail_id > 0 ? get_the_post_thumbnail_url( $product_id, 'thumbnail' ) : '';
+		$hub_media_id = 0;
+		if ( $thumbnail_id > 0 ) {
+			$raw_hub_media = get_post_meta( $thumbnail_id, '_mds_hub_media_id', true );
+			if ( is_scalar( $raw_hub_media ) && '' !== (string) $raw_hub_media ) {
+				$parts        = explode( ':', (string) $raw_hub_media );
+				$hub_media_id = absint( end( $parts ) );
+			}
+			if ( 0 === $hub_media_id ) {
+				$hub_media_id = absint( get_post_meta( $thumbnail_id, '_mds_hub_attachment_id', true ) );
+			}
+			$virtual_url = get_post_meta( $thumbnail_id, '_mds_is_hub_media', true );
+			if ( is_string( $virtual_url ) && '' !== $virtual_url ) {
+				$thumb_url = $virtual_url;
+			}
+		}
 		$price_display = '';
 		$sku           = (string) get_post_meta( $product_id, '_sku', true );
+		$gtin          = (string) get_post_meta( $product_id, '_global_unique_id', true );
 
 		if ( function_exists( 'wc_get_product' ) ) {
 			$wc_product = wc_get_product( $product_id );
@@ -1093,6 +1271,9 @@ final class RestApi {
 				$raw_price     = $wc_product->get_price();
 				$price_display = '' !== $raw_price ? wp_strip_all_tags( wc_price( (float) $raw_price ) ) : '';
 				$sku           = (string) $wc_product->get_sku();
+				if ( method_exists( $wc_product, 'get_global_unique_id' ) ) {
+					$gtin = (string) $wc_product->get_global_unique_id();
+				}
 			}
 		} else {
 			$raw_price     = (string) get_post_meta( $product_id, '_price', true );
@@ -1106,8 +1287,11 @@ final class RestApi {
 			'status'        => $status,
 			'price'         => $price_display,
 			'sku'           => $sku,
+			'gtin'          => $gtin,
 			'permalink'     => is_string( $permalink ) ? $permalink : '',
 			'edit_url'      => is_string( $edit_url ) ? $edit_url : '',
+			'thumbnail_id'  => $thumbnail_id,
+			'hub_media_id'  => $hub_media_id,
 			'thumbnail_url' => is_string( $thumb_url ) ? $thumb_url : '',
 		);
 	}

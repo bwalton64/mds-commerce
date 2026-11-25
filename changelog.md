@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-25
+
 ### Added
+- **Release-to-Product Drift Detection & Selective Sync** (`MDS\WooCommerce\Support\ProductDrift`, `POST /mds-wc/v1/sync-product`): compares Hub Releases against linked WooCommerce products for **UPC / EAN (GTIN)**, **Cover Art**, and **Product Title** differences without auto-overwriting products on Release save. Displays an **Out of sync** badge and per-field checklist with an **Update Product** button on Hub Release Store Cards, and offers an optional **Also update SKU** checkbox only when the product's SKU still matches the previous UPC (never clobbering custom SKUs).
 - Added `uninstall.php` to clean up plugin-owned options (`mds_wc_product_injection`, `mds_wc_artist_stores_migrated`) and network store caches (`mds_wc_network_stores*`) across single-site and multisite installs.
 - Added `MDS_WC_BASENAME`, `declare(strict_types=1);` in root/helper bootstrap files, and `init`-hooked `load_plugin_textdomain()` in `Plugin::load_textdomain()`.
 - **Per-Artist WooCommerce Target Stores** (`MDS\WooCommerce\Support\StoreRegistry`, `templates/artist-stores-box.php`, `src/Admin/artist-stores.js`): moved WooCommerce target-store assignment from Network Settings into a multi-select **WooCommerce Target Stores** meta box on the Hub **Artist** edit screen (`_mds_wc_target_stores` post meta).
@@ -17,9 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Standalone PHP unit test suite in `tests/store-registry.php`.
 
 ### Changed
+- Hardened `ProductDrift` (`src/Support/ProductDrift.php`): added server-side custom-SKU protection, cross-blog duplicate-SKU collision checks, `wc_product_meta_lookup` synchronization when WooCommerce isn't loaded on the Hub, and typographic ellipsis/quote normalization for title drift comparisons.
 - Hardened `StoreRegistry::get_available_stores()` stampede lock with `try / finally` lock release, brief retry, and a stale-while-revalidate fallback (`mds_wc_network_stores_fallback`) so concurrent Artist saves never clear `_mds_wc_target_stores`.
 - Scoped `Assets::enqueue()` to Hub `post` edit screens (`release`/`artist`) and WooCommerce-active settings screens, added `no_found_rows` / `update_post_term_cache` flags to `SiteSettings::get_preview_products()`, restricted `POST /mds-wc/v1/stores/refresh` to Hub requests, updated `src/Config.php` and `wpml-config.xml`, and removed orphaned `templates/network-settings-site.php`.
-- Fixed WooCommerce product-to-Release resolution (`ReleaseMeta::context_upc()`): now prefers the explicit `_mds_local_product_id` link on local shadow Releases (memoized per request) before falling back to product GTIN/UPC/EAN or SKU, ensuring injected Release Meta, Release Links, and Release Player blocks always render even when a product SKU and Release UPC diverge.
+- Upgraded WooCommerce product-to-Release resolution (`ReleaseMeta::context_post()` via `mds_rm_release_context_post` and `ReleaseMeta::context_upc()`): explicitly linked products now resolve directly to their local shadow `WP_Post` via `_mds_local_product_id` (100% immune to UPC/SKU changes), and unlinked products fall back to WooCommerce GTIN/UPC (`_global_unique_id`) only, dropping numeric SKU matching.
 - Restricted the **Releases -> Settings -> WooCommerce Integration** tab (`SiteSettings::register_tab()` and `Assets::enqueue()`) to sites where WooCommerce is actively installed (`Plugin::is_woocommerce_active_on_current_site()`).
 - Updated fresh-activation default Single Product Page Injection placements (`SiteSettings::get_default_items()`) to: **Release Meta** (Below Product Title), **Release Links** (Below Short Description / Excerpt, with **Hide Buy Now icon on product pages** enabled by default), and **Release Player** (Below Short Description / Excerpt), updated blueprint copy from "chips" to "blocks", and auto-migrated legacy `mds-release-manager/release-player` entries to `mds-rm/release-player`.
 - Scoped `mds_rm_sync_target_sites` (`ReleaseMeta::sync_targets()`) per Artist/Release using request-memoized UUID-to-Artist lookups to eliminate N+1 queries during batch syncs and prevent broadcasting Releases to unrelated WooCommerce stores.
