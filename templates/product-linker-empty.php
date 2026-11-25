@@ -20,9 +20,9 @@ $mds_wc_artist_edit_url = isset( $args['artist_edit_url'] ) ? (string) $args['ar
 		echo wp_kses(
 			sprintf(
 				/* translators: 1: Artist edit URL, 2: Artist name. */
-				__( 'No WooCommerce stores are assigned to <a href="%1$s">%2$s</a> yet. Assign one or more target stores on the Artist edit screen to link or create products for this Release.', 'mds-woocommerce-integration' ),
+				__( 'No WooCommerce stores are assigned to <a href="%1$s">%2$s</a> yet. Assign one or more target stores on the Artist edit screen to link or create products for this Release.', 'mds-woocommerce' ),
 				esc_url( $mds_wc_artist_edit_url ),
-				esc_html( '' !== $mds_wc_artist_name ? $mds_wc_artist_name : __( 'this Artist', 'mds-woocommerce-integration' ) )
+				esc_html( '' !== $mds_wc_artist_name ? $mds_wc_artist_name : __( 'this Artist', 'mds-woocommerce' ) )
 			),
 			array(
 				'a' => array(
@@ -32,6 +32,6 @@ $mds_wc_artist_edit_url = isset( $args['artist_edit_url'] ) ? (string) $args['ar
 		);
 		?>
 	<?php else : ?>
-		<?php esc_html_e( 'Assign an Artist with one or more WooCommerce Target Stores configured to link or create products for this Release.', 'mds-woocommerce-integration' ); ?>
+		<?php esc_html_e( 'Assign an Artist with one or more WooCommerce Target Stores configured to link or create products for this Release.', 'mds-woocommerce' ); ?>
 	<?php endif; ?>
 </p>

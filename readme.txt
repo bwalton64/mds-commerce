@@ -21,7 +21,7 @@ MDS WooCommerce Integration connects MDS Release Manager with WooCommerce stores
 
 == Installation ==
 
-1. Upload the `mds-woocommerce-integration` folder to `/wp-content/plugins/`.
+1. Upload the `mds-woocommerce` folder to `/wp-content/plugins/`.
 2. Run `composer install` inside the plugin directory if installing from source.
 3. Activate **MDS Release Manager** and **MDS WooCommerce Integration** through the WordPress Plugins screen (or Network Activate on multisite).
 4. Open any **Artist** on the Hub site and select one or more auto-detected **WooCommerce Target Stores** (existing Artists are automatically backfilled from legacy network settings).
@@ -38,7 +38,7 @@ No. Once a product is created or linked, the Store Admin owns the product. Updat
 
 = Can I override the admin templates in my theme? =
 
-Yes. Place custom template overrides inside your theme at `mds-woocommerce-integration/<template-name>.php`.
+Yes. Place custom template overrides inside your theme at `mds-woocommerce/<template-name>.php`.
 
 == Changelog ==
 

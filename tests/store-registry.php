@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MDS_WC_PATH', dirname( __DIR__ ) . '/' );
-define( 'MDS_WC_URL', 'http://example.test/wp-content/plugins/mds-woocommerce-integration/' );
+define( 'MDS_WC_URL', 'http://example.test/wp-content/plugins/mds-woocommerce/' );
 define( 'MDS_WC_VERSION', '1.1.0' );
 
 $GLOBALS['mds_test_multisite']        = true;

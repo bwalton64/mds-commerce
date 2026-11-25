@@ -20,12 +20,28 @@ defined( 'ABSPATH' ) || exit;
 final class Config {
 
 	/**
-	 * Primary network site option key storing integrated WooCommerce store IDs.
+	 * Primary per-site option key storing single-product block injection settings.
 	 *
 	 * @since 1.0.1
 	 * @var string
 	 */
-	public const OPTION_SETTINGS = 'mds_rm_wc_integrated_sites';
+	public const OPTION_SETTINGS = 'mds_wc_product_injection';
+
+	/**
+	 * Artist post meta key storing assigned WooCommerce store IDs.
+	 *
+	 * @since 2.1.0
+	 * @var string
+	 */
+	public const ARTIST_META_KEY = '_mds_wc_target_stores';
+
+	/**
+	 * Network transient key caching auto-detected WooCommerce stores.
+	 *
+	 * @since 2.1.0
+	 * @var string
+	 */
+	public const TRANSIENT_NETWORK_STORES = 'mds_wc_network_stores';
 
 	/**
 	 * Prefix for plugin transients.
@@ -66,12 +82,12 @@ final class Config {
 	 */
 	public static function get_default_labels(): array {
 		return array(
-			'meta_box_title'   => __( 'WooCommerce Integration', 'mds-woocommerce-integration' ),
-			'network_tab'      => __( 'WooCommerce', 'mds-woocommerce-integration' ),
-			'create_product'   => __( 'Create Product', 'mds-woocommerce-integration' ),
-			'view_in_store'    => __( 'View in Store', 'mds-woocommerce-integration' ),
-			'draft_pending'    => __( 'Draft — Pending Store Review', 'mds-woocommerce-integration' ),
-			'all_media_format' => __( 'All', 'mds-woocommerce-integration' ),
+			'meta_box_title'   => __( 'WooCommerce Integration', 'mds-woocommerce' ),
+			'artist_box_title' => __( 'WooCommerce Target Stores', 'mds-woocommerce' ),
+			'create_product'   => __( 'Create Product', 'mds-woocommerce' ),
+			'view_in_store'    => __( 'View in Store', 'mds-woocommerce' ),
+			'draft_pending'    => __( 'Draft — Pending Store Review', 'mds-woocommerce' ),
+			'all_media_format' => __( 'All', 'mds-woocommerce' ),
 		);
 	}
 }

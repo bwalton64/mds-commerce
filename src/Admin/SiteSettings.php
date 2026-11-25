@@ -114,15 +114,15 @@ final class SiteSettings {
 	 */
 	public static function get_active_slots(): array {
 		return array(
-			'woocommerce_single_product_summary:5'         => __( 'Above Product Title', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:6'         => __( 'Below Product Title', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:15'        => __( 'Below Price', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:25'        => __( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ),
-			'woocommerce_single_product_summary:45'        => __( 'Below Add to Cart', 'mds-woocommerce-integration' ),
-			'woocommerce_after_single_product_summary:10'  => __( 'Below Product Summary', 'mds-woocommerce-integration' ),
-			'woocommerce_before_single_product_summary:25' => __( 'Below Product Gallery', 'mds-woocommerce-integration' ),
-			'woocommerce_after_single_product_summary:12'  => __( 'Above Product Description / Tabs', 'mds-woocommerce-integration' ),
-			'woocommerce_after_single_product_summary:15'  => __( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ),
+			'woocommerce_single_product_summary:5'         => __( 'Above Product Title', 'mds-woocommerce' ),
+			'woocommerce_single_product_summary:6'         => __( 'Below Product Title', 'mds-woocommerce' ),
+			'woocommerce_single_product_summary:15'        => __( 'Below Price', 'mds-woocommerce' ),
+			'woocommerce_single_product_summary:25'        => __( 'Below Short Description / Excerpt', 'mds-woocommerce' ),
+			'woocommerce_single_product_summary:45'        => __( 'Below Add to Cart', 'mds-woocommerce' ),
+			'woocommerce_after_single_product_summary:10'  => __( 'Below Product Summary', 'mds-woocommerce' ),
+			'woocommerce_before_single_product_summary:25' => __( 'Below Product Gallery', 'mds-woocommerce' ),
+			'woocommerce_after_single_product_summary:12'  => __( 'Above Product Description / Tabs', 'mds-woocommerce' ),
+			'woocommerce_after_single_product_summary:15'  => __( 'Below Product Description / Tabs', 'mds-woocommerce' ),
 		);
 	}
 
@@ -137,7 +137,7 @@ final class SiteSettings {
 		return array_merge(
 			self::get_active_slots(),
 			array(
-				'disabled' => __( 'Disabled', 'mds-woocommerce-integration' ),
+				'disabled' => __( 'Disabled', 'mds-woocommerce' ),
 			)
 		);
 	}
@@ -181,9 +181,9 @@ final class SiteSettings {
 		if ( ! isset( $blocks['mds-rm/release-meta'] ) ) {
 			$blocks['mds-rm/release-meta'] = array(
 				'name'        => 'mds-rm/release-meta',
-				'title'       => __( 'Release Meta', 'mds-woocommerce-integration' ),
-				'description' => __( 'Displays release metadata (year, label, distributor, UPC/EAN, format).', 'mds-woocommerce-integration' ),
-				'group'       => __( 'MDS Release Manager', 'mds-woocommerce-integration' ),
+				'title'       => __( 'Release Meta', 'mds-woocommerce' ),
+				'description' => __( 'Displays release metadata (year, label, distributor, UPC/EAN, format).', 'mds-woocommerce' ),
+				'group'       => __( 'MDS Release Manager', 'mds-woocommerce' ),
 				'badge'       => 'RM',
 				'variant'     => 'meta',
 			);
@@ -192,9 +192,9 @@ final class SiteSettings {
 		if ( ! isset( $blocks['mds-rm/release-links'] ) ) {
 			$blocks['mds-rm/release-links'] = array(
 				'name'        => 'mds-rm/release-links',
-				'title'       => __( 'Release Links', 'mds-woocommerce-integration' ),
-				'description' => __( 'Displays streaming links and the configured audio preview player.', 'mds-woocommerce-integration' ),
-				'group'       => __( 'MDS Release Manager', 'mds-woocommerce-integration' ),
+				'title'       => __( 'Release Links', 'mds-woocommerce' ),
+				'description' => __( 'Displays streaming links and the configured audio preview player.', 'mds-woocommerce' ),
+				'group'       => __( 'MDS Release Manager', 'mds-woocommerce' ),
 				'badge'       => 'RL',
 				'variant'     => 'links',
 			);
@@ -202,9 +202,9 @@ final class SiteSettings {
 
 		$blocks[ self::CUSTOM_BLOCK_KEY ] = array(
 			'name'        => self::CUSTOM_BLOCK_KEY,
-			'title'       => __( 'Custom Shortcode / Block', 'mds-woocommerce-integration' ),
-			'description' => __( 'Render a custom shortcode or serialized Gutenberg block markup.', 'mds-woocommerce-integration' ),
-			'group'       => __( 'Custom', 'mds-woocommerce-integration' ),
+			'title'       => __( 'Custom Shortcode / Block', 'mds-woocommerce' ),
+			'description' => __( 'Render a custom shortcode or serialized Gutenberg block markup.', 'mds-woocommerce' ),
+			'group'       => __( 'Custom', 'mds-woocommerce' ),
 			'badge'       => 'CS',
 			'variant'     => 'custom',
 		);
@@ -228,15 +228,15 @@ final class SiteSettings {
 	 * @return string Group label.
 	 */
 	private static function resolve_block_group( string $block_name ): string {
-		if ( str_starts_with( $block_name, 'mds-rm/' ) ) {
-			return __( 'MDS Release Manager', 'mds-woocommerce-integration' );
+		if ( str_starts_with( $block_name, 'mds-rm/' ) || str_starts_with( $block_name, 'mds-release-manager/' ) ) {
+			return __( 'MDS Release Manager', 'mds-woocommerce' );
 		}
 
 		if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
-			return __( 'MDS Bandcamp Integration', 'mds-woocommerce-integration' );
+			return __( 'MDS Bandcamp Integration', 'mds-woocommerce' );
 		}
 
-		return __( 'MDS Extensions', 'mds-woocommerce-integration' );
+		return __( 'MDS Extensions', 'mds-woocommerce' );
 	}
 
 	/**
@@ -289,6 +289,10 @@ final class SiteSettings {
 			return 'AD';
 		}
 
+		if ( 'mds-rm/release-player' === $block_name ) {
+			return 'RP';
+		}
+
 		if ( str_starts_with( $block_name, 'mds-bandcamp/' ) ) {
 			return 'BC';
 		}
@@ -302,25 +306,25 @@ final class SiteSettings {
 	}
 
 	/**
-	 * Return default seeded injection items (Release Meta + Release Links).
+	 * Return default seeded injection items (Release Meta, Release Links, and Release Player).
 	 *
 	 * @since 1.0.1
 	 *
 	 * @return array<int, array{id: string, block: string, placement: string, enabled: bool, hide_buy_now: bool, content: string}>
 	 */
 	private static function get_default_items(): array {
-		$legacy_meta = get_theme_mod( 'mds_rm_woo_injection', 'woocommerce_single_product_summary:25' );
+		$legacy_meta = get_theme_mod( 'mds_rm_woo_injection', 'woocommerce_single_product_summary:6' );
 		$choices     = self::get_placement_choices();
 
 		if ( ! is_string( $legacy_meta ) || ! array_key_exists( $legacy_meta, $choices ) ) {
-			$legacy_meta = 'woocommerce_single_product_summary:25';
+			$legacy_meta = 'woocommerce_single_product_summary:6';
 		}
 
 		return array(
 			array(
 				'id'           => 'item_release_meta',
 				'block'        => 'mds-rm/release-meta',
-				'placement'    => 'disabled' === $legacy_meta ? 'woocommerce_single_product_summary:25' : $legacy_meta,
+				'placement'    => 'disabled' === $legacy_meta ? 'woocommerce_single_product_summary:6' : $legacy_meta,
 				'enabled'      => 'disabled' !== $legacy_meta,
 				'hide_buy_now' => false,
 				'content'      => '',
@@ -328,7 +332,15 @@ final class SiteSettings {
 			array(
 				'id'           => 'item_release_links',
 				'block'        => 'mds-rm/release-links',
-				'placement'    => 'woocommerce_after_single_product_summary:15',
+				'placement'    => 'woocommerce_single_product_summary:25',
+				'enabled'      => true,
+				'hide_buy_now' => true,
+				'content'      => '',
+			),
+			array(
+				'id'           => 'item_release_player',
+				'block'        => 'mds-rm/release-player',
+				'placement'    => 'woocommerce_single_product_summary:25',
 				'enabled'      => true,
 				'hide_buy_now' => false,
 				'content'      => '',
@@ -497,6 +509,9 @@ final class SiteSettings {
 			}
 
 			$block = isset( $row['block'] ) && is_string( $row['block'] ) ? trim( $row['block'] ) : '';
+			if ( 'mds-release-manager/release-player' === $block ) {
+				$block = 'mds-rm/release-player';
+			}
 			if ( '' === $block || ! isset( $valid_blocks[ $block ] ) ) {
 				continue;
 			}
@@ -548,11 +563,13 @@ final class SiteSettings {
 
 		$posts = get_posts(
 			array(
-				'post_type'      => 'product',
-				'post_status'    => 'publish',
-				'posts_per_page' => 25,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
+				'post_type'              => 'product',
+				'post_status'            => 'publish',
+				'posts_per_page'         => 25,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
 			)
 		);
 
@@ -580,12 +597,12 @@ final class SiteSettings {
 	 * @return array<string, array<string, mixed>> Updated settings tabs.
 	 */
 	public static function register_tab( array $tabs ): array {
-		if ( ! Plugin::is_active() ) {
+		if ( ! Plugin::is_active() || ! Plugin::is_woocommerce_active_on_current_site() ) {
 			return $tabs;
 		}
 
 		$tabs['woocommerce'] = array(
-			'label'  => __( 'WooCommerce Integration', 'mds-woocommerce-integration' ),
+			'label'  => __( 'WooCommerce Integration', 'mds-woocommerce' ),
 			'render' => array( self::class, 'render_tab' ),
 		);
 
@@ -601,7 +618,7 @@ final class SiteSettings {
 	 */
 	public static function render_tab(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to manage WooCommerce integration settings.', 'mds-woocommerce-integration' ) );
+			wp_die( esc_html__( 'You are not allowed to manage WooCommerce integration settings.', 'mds-woocommerce' ) );
 		}
 
 		$available_blocks = self::get_available_blocks();
@@ -616,9 +633,9 @@ final class SiteSettings {
 			<div class="mds-panel mds-wc-designer-panel">
 				<div class="mds-wc-designer-header">
 					<div>
-						<h2><?php esc_html_e( 'Single Product Page Injection', 'mds-woocommerce-integration' ); ?></h2>
+						<h2><?php esc_html_e( 'Single Product Page Injection', 'mds-woocommerce' ); ?></h2>
 						<p class="description">
-							<?php esc_html_e( 'Add any registered MDS block (including Bandcamp blocks when active), then drag chips onto slots in the Single Product Blueprint or use the Up / Down controls to position them. Works on both Block Themes and Classic WooCommerce themes.', 'mds-woocommerce-integration' ); ?>
+							<?php esc_html_e( 'Add any registered MDS block (including Bandcamp blocks when active), then drag blocks onto slots in the Single Product Blueprint or use the Up / Down controls to position them. Works on both Block Themes and Classic WooCommerce themes.', 'mds-woocommerce' ); ?>
 						</p>
 					</div>
 				</div>
@@ -627,7 +644,7 @@ final class SiteSettings {
 					<div class="mds-wc-designer-controls">
 						<div class="mds-wc-add-block-bar">
 							<label for="mds-wc-add-block-select" class="screen-reader-text">
-								<?php esc_html_e( 'Select an MDS block to add', 'mds-woocommerce-integration' ); ?>
+								<?php esc_html_e( 'Select an MDS block to add', 'mds-woocommerce' ); ?>
 							</label>
 							<select id="mds-wc-add-block-select" class="mds-wc-add-block-bar__select">
 								<?php foreach ( $grouped_blocks as $group_label => $group_items ) : ?>
@@ -641,7 +658,7 @@ final class SiteSettings {
 								<?php endforeach; ?>
 							</select>
 							<button type="button" id="mds-wc-add-block-btn" class="button button-secondary">
-								<?php esc_html_e( '+ Add Block', 'mds-woocommerce-integration' ); ?>
+								<?php esc_html_e( '+ Add Block', 'mds-woocommerce' ); ?>
 							</button>
 						</div>
 
@@ -650,17 +667,17 @@ final class SiteSettings {
 						<?php settings_fields( self::OPTION_GROUP ); ?>
 						<div class="mds-admin-save-actions mds-wc-form-actions">
 							<button id="mds-wc-site-save-btn" class="button button-primary" type="submit">
-								<?php esc_html_e( 'Save Settings', 'mds-woocommerce-integration' ); ?>
+								<?php esc_html_e( 'Save Settings', 'mds-woocommerce' ); ?>
 							</button>
 							<span id="mds-wc-site-save-status" class="mds-wc-status-message" role="status" aria-live="polite"></span>
 						</div>
 					</div>
 
-					<aside class="mds-wc-blueprint" aria-label="<?php esc_attr_e( 'Interactive Product Page Placement Blueprint', 'mds-woocommerce-integration' ); ?>">
+					<aside class="mds-wc-blueprint" aria-label="<?php esc_attr_e( 'Interactive Product Page Placement Blueprint', 'mds-woocommerce' ); ?>">
 						<div class="mds-wc-blueprint__bar">
 							<span class="mds-wc-blueprint__dots" aria-hidden="true"><span></span><span></span><span></span></span>
-							<span class="mds-wc-blueprint__label"><?php esc_html_e( 'Single Product Layout Blueprint', 'mds-woocommerce-integration' ); ?></span>
-							<span class="mds-wc-blueprint__hint"><?php esc_html_e( 'Drag & drop chips between slots', 'mds-woocommerce-integration' ); ?></span>
+							<span class="mds-wc-blueprint__label"><?php esc_html_e( 'Single Product Layout Blueprint', 'mds-woocommerce' ); ?></span>
+							<span class="mds-wc-blueprint__hint"><?php esc_html_e( 'Drag & drop blocks between slots', 'mds-woocommerce' ); ?></span>
 						</div>
 
 						<div class="mds-wc-blueprint__canvas">
@@ -668,79 +685,79 @@ final class SiteSettings {
 								<div class="mds-wc-wire-gallery-col">
 									<div class="mds-wc-wire-gallery" aria-hidden="true">
 										<span class="dashicons dashicons-format-image"></span>
-										<span><?php esc_html_e( 'Product Gallery', 'mds-woocommerce-integration' ); ?></span>
+										<span><?php esc_html_e( 'Product Gallery', 'mds-woocommerce' ); ?></span>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_before_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Product Gallery', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_before_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Product Gallery', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 								</div>
 
 								<div class="mds-wc-wire-summary">
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:5" data-slot-label="<?php esc_attr_e( 'Above Product Title', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:5" data-slot-label="<?php esc_attr_e( 'Above Product Title', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
 									<div class="mds-wc-wire-block mds-wc-wire-block--title" aria-hidden="true">
-										<?php esc_html_e( 'Product Title', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Product Title', 'mds-woocommerce' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:6" data-slot-label="<?php esc_attr_e( 'Below Product Title', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:6" data-slot-label="<?php esc_attr_e( 'Below Product Title', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
 									<div class="mds-wc-wire-block mds-wc-wire-block--price" aria-hidden="true">
-										<?php esc_html_e( '$19.99', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( '$19.99', 'mds-woocommerce' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Price', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Price', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
 									<div class="mds-wc-wire-block mds-wc-wire-block--excerpt" aria-hidden="true">
-										<span><?php esc_html_e( 'Short Description / Excerpt', 'mds-woocommerce-integration' ); ?></span>
+										<span><?php esc_html_e( 'Short Description / Excerpt', 'mds-woocommerce' ); ?></span>
 										<span class="mds-wc-wire-line"></span>
 										<span class="mds-wc-wire-line is-short"></span>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Short Description / Excerpt', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:25" data-slot-label="<?php esc_attr_e( 'Below Short Description / Excerpt', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
 									<div class="mds-wc-wire-block mds-wc-wire-block--cart" aria-hidden="true">
-										<?php esc_html_e( 'Add to Cart', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Add to Cart', 'mds-woocommerce' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:45" data-slot-label="<?php esc_attr_e( 'Below Add to Cart', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_single_product_summary:45" data-slot-label="<?php esc_attr_e( 'Below Add to Cart', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 
 									<div class="mds-wc-wire-block mds-wc-wire-block--meta" aria-hidden="true">
-										<?php esc_html_e( 'SKU · Categories · Tags', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'SKU · Categories · Tags', 'mds-woocommerce' ); ?>
 									</div>
 
-									<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:10" data-slot-label="<?php esc_attr_e( 'Below Product Summary', 'mds-woocommerce-integration' ); ?>">
+									<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:10" data-slot-label="<?php esc_attr_e( 'Below Product Summary', 'mds-woocommerce' ); ?>">
 										<div class="mds-wc-slot__chips"></div>
 									</div>
 								</div>
 							</div>
 
-							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:12" data-slot-label="<?php esc_attr_e( 'Above Product Description / Tabs', 'mds-woocommerce-integration' ); ?>">
+							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:12" data-slot-label="<?php esc_attr_e( 'Above Product Description / Tabs', 'mds-woocommerce' ); ?>">
 								<div class="mds-wc-slot__chips"></div>
 							</div>
 
 							<div class="mds-wc-wire-block mds-wc-wire-block--tabs" aria-hidden="true">
-								<strong><?php esc_html_e( 'Product Description / Tabs', 'mds-woocommerce-integration' ); ?></strong>
+								<strong><?php esc_html_e( 'Product Description / Tabs', 'mds-woocommerce' ); ?></strong>
 								<span class="mds-wc-wire-line"></span>
 								<span class="mds-wc-wire-line is-short"></span>
 							</div>
 
-							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Product Description / Tabs', 'mds-woocommerce-integration' ); ?>">
+							<div class="mds-wc-slot" data-slot="woocommerce_after_single_product_summary:15" data-slot-label="<?php esc_attr_e( 'Below Product Description / Tabs', 'mds-woocommerce' ); ?>">
 								<div class="mds-wc-slot__chips"></div>
 							</div>
 
-							<div class="mds-wc-slot mds-wc-slot--disabled-tray" data-slot="disabled" data-slot-label="<?php esc_attr_e( 'Disable Block', 'mds-woocommerce-integration' ); ?>">
-								<span class="mds-wc-slot__tray-label"><?php esc_html_e( 'Inactive / Disabled', 'mds-woocommerce-integration' ); ?></span>
+							<div class="mds-wc-slot mds-wc-slot--disabled-tray" data-slot="disabled" data-slot-label="<?php esc_attr_e( 'Disable Block', 'mds-woocommerce' ); ?>">
+								<span class="mds-wc-slot__tray-label"><?php esc_html_e( 'Inactive / Disabled', 'mds-woocommerce' ); ?></span>
 								<div class="mds-wc-slot__chips"></div>
 							</div>
 						</div>
@@ -750,21 +767,21 @@ final class SiteSettings {
 				<details class="mds-wc-live-preview" id="mds-wc-live-preview">
 					<summary class="mds-wc-live-preview__summary">
 						<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
-						<span><?php esc_html_e( 'Live Preview', 'mds-woocommerce-integration' ); ?></span>
+						<span><?php esc_html_e( 'Live Preview', 'mds-woocommerce' ); ?></span>
 						<span class="mds-wc-live-preview__hint">
-							<?php esc_html_e( 'Inspect unsaved placement changes on a real product page', 'mds-woocommerce-integration' ); ?>
+							<?php esc_html_e( 'Inspect unsaved placement changes on a real product page', 'mds-woocommerce' ); ?>
 						</span>
 					</summary>
 
 					<div class="mds-wc-live-preview__body">
 						<?php if ( empty( $preview_products ) ) : ?>
 							<p class="description">
-								<?php esc_html_e( 'No published WooCommerce products were found on this site to preview.', 'mds-woocommerce-integration' ); ?>
+								<?php esc_html_e( 'No published WooCommerce products were found on this site to preview.', 'mds-woocommerce' ); ?>
 							</p>
 						<?php else : ?>
 							<div class="mds-wc-live-preview__toolbar">
 								<div class="mds-wc-live-preview__product-picker">
-									<label for="mds-wc-preview-product"><?php esc_html_e( 'Preview Product:', 'mds-woocommerce-integration' ); ?></label>
+									<label for="mds-wc-preview-product"><?php esc_html_e( 'Preview Product:', 'mds-woocommerce' ); ?></label>
 									<select id="mds-wc-preview-product">
 										<?php foreach ( $preview_products as $product ) : ?>
 											<option value="<?php echo esc_url( $product['url'] ); ?>">
@@ -774,21 +791,21 @@ final class SiteSettings {
 									</select>
 								</div>
 
-								<div class="mds-wc-live-preview__viewports" role="group" aria-label="<?php esc_attr_e( 'Preview Viewport Width', 'mds-woocommerce-integration' ); ?>">
+								<div class="mds-wc-live-preview__viewports" role="group" aria-label="<?php esc_attr_e( 'Preview Viewport Width', 'mds-woocommerce' ); ?>">
 									<button type="button" class="button button-secondary is-active" data-viewport="desktop" aria-pressed="true">
-										<?php esc_html_e( 'Desktop', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Desktop', 'mds-woocommerce' ); ?>
 									</button>
 									<button type="button" class="button button-secondary" data-viewport="tablet" aria-pressed="false">
-										<?php esc_html_e( 'Tablet', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Tablet', 'mds-woocommerce' ); ?>
 									</button>
 									<button type="button" class="button button-secondary" data-viewport="mobile" aria-pressed="false">
-										<?php esc_html_e( 'Mobile', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Mobile', 'mds-woocommerce' ); ?>
 									</button>
 								</div>
 
 								<div class="mds-wc-live-preview__actions">
 									<button type="button" class="button button-secondary" id="mds-wc-preview-refresh">
-										<?php esc_html_e( 'Refresh', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Refresh', 'mds-woocommerce' ); ?>
 									</button>
 									<a
 										href="<?php echo esc_url( $preview_products[0]['url'] ); ?>"
@@ -797,7 +814,7 @@ final class SiteSettings {
 										target="_blank"
 										rel="noopener noreferrer"
 									>
-										<?php esc_html_e( 'Open in New Tab', 'mds-woocommerce-integration' ); ?>
+										<?php esc_html_e( 'Open in New Tab', 'mds-woocommerce' ); ?>
 										<span class="dashicons dashicons-external" aria-hidden="true"></span>
 									</a>
 								</div>
@@ -807,7 +824,7 @@ final class SiteSettings {
 								<iframe
 									id="mds-wc-preview-iframe"
 									class="mds-wc-live-preview__iframe"
-									title="<?php esc_attr_e( 'Live WooCommerce Product Page Preview', 'mds-woocommerce-integration' ); ?>"
+									title="<?php esc_attr_e( 'Live WooCommerce Product Page Preview', 'mds-woocommerce' ); ?>"
 									loading="lazy"
 								></iframe>
 							</div>

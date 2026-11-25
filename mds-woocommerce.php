@@ -7,11 +7,13 @@
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
  * Author: Musty Dungeon Studios
- * Text Domain: mds-woocommerce-integration
+ * Text Domain: mds-woocommerce
  *
  * @package MDS\WooCommerce
  * @since   1.0.1
  */
+
+declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
@@ -19,6 +21,7 @@ define( 'MDS_WC_VERSION', '1.0.1' );
 define( 'MDS_WC_FILE', __FILE__ );
 define( 'MDS_WC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MDS_WC_URL', plugin_dir_url( __FILE__ ) );
+define( 'MDS_WC_BASENAME', plugin_basename( __FILE__ ) );
 
 $mds_wc_autoloader = MDS_WC_PATH . 'vendor/autoload.php';
 
@@ -36,7 +39,7 @@ if ( file_exists( $mds_wc_autoloader ) ) {
 
 			printf(
 				'<div class="notice notice-error"><p>%s</p></div>',
-				esc_html__( 'MDS WooCommerce Integration requires Composer dependencies. Run composer install in the plugin directory.', 'mds-woocommerce-integration' )
+				esc_html__( 'MDS WooCommerce Integration requires Composer dependencies. Run composer install in the plugin directory.', 'mds-woocommerce' )
 			);
 		}
 	);

@@ -39,23 +39,24 @@ final class Assets {
 			return;
 		}
 
-		if ( 'release_page_mds-release-settings' === $screen->id ) {
+		$is_wc_settings  = 'release_page_mds-release-settings' === $screen->id && Plugin::is_woocommerce_active_on_current_site();
+		$is_hub          = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
+		$is_release_edit = 'post' === $screen->base && 'release' === $screen->post_type && $is_hub;
+		$is_artist_edit  = 'post' === $screen->base && 'artist' === $screen->post_type && is_multisite() && $is_hub;
+
+		if ( $is_wc_settings ) {
 			self::enqueue_site_settings_script();
 		}
 
-		if ( 'release' === $screen->post_type ) {
+		if ( $is_release_edit ) {
 			self::enqueue_product_linker_script();
 		}
 
-		if ( 'artist' === $screen->post_type && is_multisite() ) {
+		if ( $is_artist_edit ) {
 			self::enqueue_artist_stores_script();
 		}
 
-		if (
-			'release' === $screen->post_type
-			|| 'artist' === $screen->post_type
-			|| 'release_page_mds-release-settings' === $screen->id
-		) {
+		if ( $is_release_edit || $is_artist_edit || $is_wc_settings ) {
 			self::enqueue_admin_styles();
 		}
 	}
@@ -130,7 +131,7 @@ final class Assets {
 			true
 		);
 		wp_enqueue_script( $handle );
-		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
+		wp_set_script_translations( $handle, 'mds-woocommerce' );
 
 		global $post;
 		$artist_id = ( $post instanceof WP_Post && 'artist' === $post->post_type ) ? (int) $post->ID : 0;
@@ -142,16 +143,16 @@ final class Assets {
 				: '',
 			'nonce'      => wp_create_nonce( 'wp_rest' ),
 			'messages'   => array(
-				'refreshing'   => __( 'Refreshing…', 'mds-woocommerce-integration' ),
-				'refreshed'    => __( 'WooCommerce store list refreshed.', 'mds-woocommerce-integration' ),
-				'refreshError' => __( 'Unable to refresh WooCommerce stores.', 'mds-woocommerce-integration' ),
-				'noStores'     => __( 'No active WooCommerce stores were detected on this network.', 'mds-woocommerce-integration' ),
-				'syncing'      => __( 'Syncing Releases…', 'mds-woocommerce-integration' ),
+				'refreshing'   => __( 'Refreshing…', 'mds-woocommerce' ),
+				'refreshed'    => __( 'WooCommerce store list refreshed.', 'mds-woocommerce' ),
+				'refreshError' => __( 'Unable to refresh WooCommerce stores.', 'mds-woocommerce' ),
+				'noStores'     => __( 'No active WooCommerce stores were detected on this network.', 'mds-woocommerce' ),
+				'syncing'      => __( 'Syncing Releases…', 'mds-woocommerce' ),
 				/* translators: %d: Number of releases synchronized. */
-				'syncComplete' => __( 'Synced Artist and %d release(s) to selected stores.', 'mds-woocommerce-integration' ),
+				'syncComplete' => __( 'Synced Artist and %d release(s) to selected stores.', 'mds-woocommerce' ),
 				/* translators: 1: Number of releases synchronized, 2: Number of errors. */
-				'syncPartial'  => __( 'Synced %1$d release(s) with %2$d error(s).', 'mds-woocommerce-integration' ),
-				'syncError'    => __( 'Unable to synchronize Artist releases.', 'mds-woocommerce-integration' ),
+				'syncPartial'  => __( 'Synced %1$d release(s) with %2$d error(s).', 'mds-woocommerce' ),
+				'syncError'    => __( 'Unable to synchronize Artist releases.', 'mds-woocommerce' ),
 			),
 		);
 
@@ -186,7 +187,7 @@ final class Assets {
 			true
 		);
 		wp_enqueue_script( $handle );
-		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
+		wp_set_script_translations( $handle, 'mds-woocommerce' );
 
 		$settings = SiteSettings::get_settings();
 		$config   = array(
@@ -199,25 +200,25 @@ final class Assets {
 			'items'           => $settings['items'],
 			'customBlockKey'  => SiteSettings::CUSTOM_BLOCK_KEY,
 			'messages'        => array(
-				'save'              => __( 'Save Settings', 'mds-woocommerce-integration' ),
-				'saving'            => __( 'Saving…', 'mds-woocommerce-integration' ),
-				'saved'             => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
-				'saveError'         => __( 'Unable to save WooCommerce integration settings.', 'mds-woocommerce-integration' ),
-				'enabled'           => __( 'Enabled', 'mds-woocommerce-integration' ),
-				'remove'            => __( 'Remove block', 'mds-woocommerce-integration' ),
-				'moveUp'            => __( 'Move up', 'mds-woocommerce-integration' ),
-				'moveDown'          => __( 'Move down', 'mds-woocommerce-integration' ),
-				'hideBuyNow'        => __( 'Hide Buy Now icon on product pages', 'mds-woocommerce-integration' ),
-				'customPlaceholder' => __( '[release-links show_audio="1"]', 'mds-woocommerce-integration' ),
-				'customLabel'       => __( 'Custom Shortcode or Block Markup', 'mds-woocommerce-integration' ),
-				'emptyList'         => __( 'No blocks added yet. Select an MDS block above and click "+ Add Block".', 'mds-woocommerce-integration' ),
+				'save'              => __( 'Save Settings', 'mds-woocommerce' ),
+				'saving'            => __( 'Saving…', 'mds-woocommerce' ),
+				'saved'             => __( 'WooCommerce integration settings saved.', 'mds-woocommerce' ),
+				'saveError'         => __( 'Unable to save WooCommerce integration settings.', 'mds-woocommerce' ),
+				'enabled'           => __( 'Enabled', 'mds-woocommerce' ),
+				'remove'            => __( 'Remove block', 'mds-woocommerce' ),
+				'moveUp'            => __( 'Move up', 'mds-woocommerce' ),
+				'moveDown'          => __( 'Move down', 'mds-woocommerce' ),
+				'hideBuyNow'        => __( 'Hide Buy Now icon on product pages', 'mds-woocommerce' ),
+				'customPlaceholder' => __( '[release-links show_audio="1"]', 'mds-woocommerce' ),
+				'customLabel'       => __( 'Custom Shortcode or Block Markup', 'mds-woocommerce' ),
+				'emptyList'         => __( 'No blocks added yet. Select an MDS block above and click "+ Add Block".', 'mds-woocommerce' ),
 				/* translators: 1: Block name, 2: Placement slot name. */
-				'movedTo'           => __( 'Moved %1$s to %2$s.', 'mds-woocommerce-integration' ),
+				'movedTo'           => __( 'Moved %1$s to %2$s.', 'mds-woocommerce' ),
 				/* translators: %s: Block name. */
-				'addedBlock'        => __( 'Added %s to product layout.', 'mds-woocommerce-integration' ),
+				'addedBlock'        => __( 'Added %s to product layout.', 'mds-woocommerce' ),
 				/* translators: %s: Block name. */
-				'removedBlock'      => __( 'Removed %s from product layout.', 'mds-woocommerce-integration' ),
-				'previewUpdated'    => __( 'Live preview updated.', 'mds-woocommerce-integration' ),
+				'removedBlock'      => __( 'Removed %s from product layout.', 'mds-woocommerce' ),
+				'previewUpdated'    => __( 'Live preview updated.', 'mds-woocommerce' ),
 			),
 		);
 
@@ -252,7 +253,7 @@ final class Assets {
 			true
 		);
 		wp_enqueue_script( $handle );
-		wp_set_script_translations( $handle, 'mds-woocommerce-integration' );
+		wp_set_script_translations( $handle, 'mds-woocommerce' );
 
 		global $post;
 		$release_seed = array(
@@ -285,37 +286,37 @@ final class Assets {
 			'nonce'         => wp_create_nonce( 'wp_rest' ),
 			'release'       => $release_seed,
 			'messages'      => array(
-				'searching'          => __( 'Searching store products…', 'mds-woocommerce-integration' ),
-				'noResults'          => __( 'No matching products found on this store.', 'mds-woocommerce-integration' ),
-				'searchError'        => __( 'Unable to search products on this store.', 'mds-woocommerce-integration' ),
-				'linking'            => __( 'Linking product…', 'mds-woocommerce-integration' ),
-				'linked'             => __( 'Product linked and synced to spokes.', 'mds-woocommerce-integration' ),
-				'linkError'          => __( 'Unable to link the selected product.', 'mds-woocommerce-integration' ),
-				'unlinking'          => __( 'Unlinking…', 'mds-woocommerce-integration' ),
-				'unlinked'           => __( 'Product unlinked from this store.', 'mds-woocommerce-integration' ),
-				'unlinkError'        => __( 'Unable to unlink this product.', 'mds-woocommerce-integration' ),
-				'confirmUnlink'      => __( 'Unlink this product from the release? The product in the store will not be deleted.', 'mds-woocommerce-integration' ),
-				'loadingTaxonomies'  => __( 'Loading store categories…', 'mds-woocommerce-integration' ),
-				'noCategories'       => __( 'No categories found on this store.', 'mds-woocommerce-integration' ),
-				'creating'           => __( 'Creating product…', 'mds-woocommerce-integration' ),
-				'createSubmit'       => __( 'Create & Link Product', 'mds-woocommerce-integration' ),
-				'created'            => __( 'Product created and linked to this release.', 'mds-woocommerce-integration' ),
-				'createError'        => __( 'Unable to create product on this store.', 'mds-woocommerce-integration' ),
-				'viewInStore'        => __( 'View in Store', 'mds-woocommerce-integration' ),
-				'editInStore'        => __( 'Edit in Store', 'mds-woocommerce-integration' ),
-				'changeLink'         => __( 'Change Link', 'mds-woocommerce-integration' ),
-				'unlink'             => __( 'Unlink', 'mds-woocommerce-integration' ),
-				'statusPublished'    => __( 'Published', 'mds-woocommerce-integration' ),
-				'statusDraftPending' => __( 'Draft — Pending Store Review', 'mds-woocommerce-integration' ),
-				'statusLinked'       => __( 'Linked', 'mds-woocommerce-integration' ),
-				'statusUnlinked'     => __( 'Not Linked', 'mds-woocommerce-integration' ),
-				'searchPlaceholder'  => __( 'Search existing store products…', 'mds-woocommerce-integration' ),
-				'createNew'          => __( 'Create Product', 'mds-woocommerce-integration' ),
-				'cancel'             => __( 'Cancel', 'mds-woocommerce-integration' ),
-				'skuPrefix'          => __( 'SKU:', 'mds-woocommerce-integration' ),
-				'allFormatLabel'     => __( 'All', 'mds-woocommerce-integration' ),
-				'buyNowAdded'        => __( 'Added linked WooCommerce product URL to Buy Now formats.', 'mds-woocommerce-integration' ),
-				'buyNowExists'       => __( 'All linked published WooCommerce product URLs are already listed in Buy Now.', 'mds-woocommerce-integration' ),
+				'searching'          => __( 'Searching store products…', 'mds-woocommerce' ),
+				'noResults'          => __( 'No matching products found on this store.', 'mds-woocommerce' ),
+				'searchError'        => __( 'Unable to search products on this store.', 'mds-woocommerce' ),
+				'linking'            => __( 'Linking product…', 'mds-woocommerce' ),
+				'linked'             => __( 'Product linked and synced to spokes.', 'mds-woocommerce' ),
+				'linkError'          => __( 'Unable to link the selected product.', 'mds-woocommerce' ),
+				'unlinking'          => __( 'Unlinking…', 'mds-woocommerce' ),
+				'unlinked'           => __( 'Product unlinked from this store.', 'mds-woocommerce' ),
+				'unlinkError'        => __( 'Unable to unlink this product.', 'mds-woocommerce' ),
+				'confirmUnlink'      => __( 'Unlink this product from the release? The product in the store will not be deleted.', 'mds-woocommerce' ),
+				'loadingTaxonomies'  => __( 'Loading store categories…', 'mds-woocommerce' ),
+				'noCategories'       => __( 'No categories found on this store.', 'mds-woocommerce' ),
+				'creating'           => __( 'Creating product…', 'mds-woocommerce' ),
+				'createSubmit'       => __( 'Create & Link Product', 'mds-woocommerce' ),
+				'created'            => __( 'Product created and linked to this release.', 'mds-woocommerce' ),
+				'createError'        => __( 'Unable to create product on this store.', 'mds-woocommerce' ),
+				'viewInStore'        => __( 'View in Store', 'mds-woocommerce' ),
+				'editInStore'        => __( 'Edit in Store', 'mds-woocommerce' ),
+				'changeLink'         => __( 'Change Link', 'mds-woocommerce' ),
+				'unlink'             => __( 'Unlink', 'mds-woocommerce' ),
+				'statusPublished'    => __( 'Published', 'mds-woocommerce' ),
+				'statusDraftPending' => __( 'Draft — Pending Store Review', 'mds-woocommerce' ),
+				'statusLinked'       => __( 'Linked', 'mds-woocommerce' ),
+				'statusUnlinked'     => __( 'Not Linked', 'mds-woocommerce' ),
+				'searchPlaceholder'  => __( 'Search existing store products…', 'mds-woocommerce' ),
+				'createNew'          => __( 'Create Product', 'mds-woocommerce' ),
+				'cancel'             => __( 'Cancel', 'mds-woocommerce' ),
+				'skuPrefix'          => __( 'SKU:', 'mds-woocommerce' ),
+				'allFormatLabel'     => __( 'All', 'mds-woocommerce' ),
+				'buyNowAdded'        => __( 'Added linked WooCommerce product URL to Buy Now formats.', 'mds-woocommerce' ),
+				'buyNowExists'       => __( 'All linked published WooCommerce product URLs are already listed in Buy Now.', 'mds-woocommerce' ),
 			),
 		);
 

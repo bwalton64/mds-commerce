@@ -23,20 +23,20 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 	<input type="hidden" name="mds_wc_artist_stores_present" value="1" />
 
 	<p class="description">
-		<?php esc_html_e( 'Select the WooCommerce store(s) where this Artist and their Releases should synchronize and allow product linking.', 'mds-woocommerce-integration' ); ?>
+		<?php esc_html_e( 'Select the WooCommerce store(s) where this Artist and their Releases should synchronize and allow product linking.', 'mds-woocommerce' ); ?>
 	</p>
 
 	<div class="mds-wc-artist-stores__notice" role="status" aria-live="polite"></div>
 
 	<fieldset class="mds-wc-artist-stores__fieldset">
 		<legend class="screen-reader-text">
-			<?php esc_html_e( 'Target WooCommerce Stores', 'mds-woocommerce-integration' ); ?>
+			<?php esc_html_e( 'Target WooCommerce Stores', 'mds-woocommerce' ); ?>
 		</legend>
 
 		<div class="mds-wc-artist-stores__list">
 			<?php if ( empty( $mds_wc_stores ) ) : ?>
 				<p class="mds-wc-artist-stores__empty">
-					<?php esc_html_e( 'No active WooCommerce stores were detected on this network. Activate WooCommerce on a site and refresh the list.', 'mds-woocommerce-integration' ); ?>
+					<?php esc_html_e( 'No active WooCommerce stores were detected on this network. Activate WooCommerce on a site and refresh the list.', 'mds-woocommerce' ); ?>
 				</p>
 			<?php else : ?>
 				<?php foreach ( $mds_wc_stores as $mds_wc_store ) : ?>
@@ -67,7 +67,7 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 
 	<div class="mds-wc-artist-stores__actions">
 		<button type="button" class="button button-secondary mds-wc-refresh-stores-btn">
-			<?php esc_html_e( 'Refresh Store List', 'mds-woocommerce-integration' ); ?>
+			<?php esc_html_e( 'Refresh Store List', 'mds-woocommerce' ); ?>
 		</button>
 
 		<?php if ( ! $mds_wc_is_auto_draft && $mds_wc_release_count > 0 ) : ?>
@@ -84,7 +84,7 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 							'Sync %d Release to Selected Stores',
 							'Sync %d Releases to Selected Stores',
 							$mds_wc_release_count,
-							'mds-woocommerce-integration'
+							'mds-woocommerce'
 						),
 						$mds_wc_release_count
 					)
@@ -95,6 +95,6 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 	</div>
 
 	<p class="description mds-wc-artist-stores__dirty-hint" hidden>
-		<?php esc_html_e( 'Save or Update this Artist first before syncing Releases to newly selected stores.', 'mds-woocommerce-integration' ); ?>
+		<?php esc_html_e( 'Save or Update this Artist first before syncing Releases to newly selected stores.', 'mds-woocommerce' ); ?>
 	</p>
 </div>

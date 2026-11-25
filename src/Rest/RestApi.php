@@ -150,7 +150,8 @@ final class RestApi {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'refresh_stores' ),
 				'permission_callback' => static function (): bool {
-					return current_user_can( 'edit_posts' );
+					$is_hub = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
+					return $is_hub && current_user_can( 'edit_posts' );
 				},
 			)
 		);
@@ -190,7 +191,7 @@ final class RestApi {
 			array(
 				'success'  => true,
 				'settings' => $sanitized,
-				'message'  => __( 'WooCommerce integration settings saved.', 'mds-woocommerce-integration' ),
+				'message'  => __( 'WooCommerce integration settings saved.', 'mds-woocommerce' ),
 			)
 		);
 	}
@@ -230,7 +231,7 @@ final class RestApi {
 		if ( ! $artist instanceof WP_Post || 'artist' !== $artist->post_type ) {
 			return new WP_Error(
 				'invalid_artist',
-				__( 'Artist not found.', 'mds-woocommerce-integration' ),
+				__( 'Artist not found.', 'mds-woocommerce' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -239,7 +240,7 @@ final class RestApi {
 		if ( empty( $target_stores ) ) {
 			return new WP_Error(
 				'no_target_stores',
-				__( 'Assign at least one WooCommerce store to this Artist before syncing.', 'mds-woocommerce-integration' ),
+				__( 'Assign at least one WooCommerce store to this Artist before syncing.', 'mds-woocommerce' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -247,7 +248,7 @@ final class RestApi {
 		if ( ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) ) {
 			return new WP_Error(
 				'sync_unavailable',
-				__( 'MDS Release Manager synchronization is unavailable.', 'mds-woocommerce-integration' ),
+				__( 'MDS Release Manager synchronization is unavailable.', 'mds-woocommerce' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -341,7 +342,7 @@ final class RestApi {
 		if ( ! $store_id || ! $release_id || ! $product_id ) {
 			return new WP_Error(
 				'missing_data',
-				__( 'Missing Store ID, Release ID, or Product ID.', 'mds-woocommerce-integration' ),
+				__( 'Missing Store ID, Release ID, or Product ID.', 'mds-woocommerce' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -356,7 +357,7 @@ final class RestApi {
 			if ( ! Plugin::is_woocommerce_active_on_current_site() ) {
 				return new WP_Error(
 					'no_wc',
-					__( 'WooCommerce is not active on the selected site.', 'mds-woocommerce-integration' ),
+					__( 'WooCommerce is not active on the selected site.', 'mds-woocommerce' ),
 					array( 'status' => 400 )
 				);
 			}
@@ -367,7 +368,7 @@ final class RestApi {
 			if ( ! $product || 'product' !== $product->post_type || 'trash' === $product->post_status ) {
 				return new WP_Error(
 					'invalid_product',
-					__( 'The selected product could not be found on the store.', 'mds-woocommerce-integration' ),
+					__( 'The selected product could not be found on the store.', 'mds-woocommerce' ),
 					array( 'status' => 404 )
 				);
 			}
@@ -404,7 +405,7 @@ final class RestApi {
 		if ( ! $store_id || ! $release_id ) {
 			return new WP_Error(
 				'missing_data',
-				__( 'Missing Store ID or Release ID.', 'mds-woocommerce-integration' ),
+				__( 'Missing Store ID or Release ID.', 'mds-woocommerce' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -525,7 +526,7 @@ final class RestApi {
 		if ( ! $store_id || ! $release_id ) {
 			return new WP_Error(
 				'missing_data',
-				__( 'Missing Store ID or Release ID.', 'mds-woocommerce-integration' ),
+				__( 'Missing Store ID or Release ID.', 'mds-woocommerce' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -586,7 +587,7 @@ final class RestApi {
 			if ( ! Plugin::is_woocommerce_active_on_current_site() ) {
 				return new WP_Error(
 					'no_wc',
-					__( 'WooCommerce is not active on the selected site.', 'mds-woocommerce-integration' ),
+					__( 'WooCommerce is not active on the selected site.', 'mds-woocommerce' ),
 					array( 'status' => 400 )
 				);
 			}
@@ -602,7 +603,7 @@ final class RestApi {
 			if ( ! $product_id ) {
 				return new WP_Error(
 					'create_failed',
-					__( 'Failed to create product.', 'mds-woocommerce-integration' ),
+					__( 'Failed to create product.', 'mds-woocommerce' ),
 					array( 'status' => 500 )
 				);
 			}
@@ -716,7 +717,7 @@ final class RestApi {
 		) {
 			return new WP_Error(
 				'forbidden_release',
-				__( 'You are not allowed to edit this release.', 'mds-woocommerce-integration' ),
+				__( 'You are not allowed to edit this release.', 'mds-woocommerce' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -724,7 +725,7 @@ final class RestApi {
 		if ( ! self::is_integrated_store( $store_id ) ) {
 			return new WP_Error(
 				'invalid_store',
-				__( 'The selected store does not have WooCommerce active.', 'mds-woocommerce-integration' ),
+				__( 'The selected store does not have WooCommerce active.', 'mds-woocommerce' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -732,7 +733,7 @@ final class RestApi {
 		if ( ! Plugin::user_can_manage_spoke_product( $release_id, $store_id, $allow_existing_link ) ) {
 			return new WP_Error(
 				'forbidden_store',
-				__( 'This store is not assigned to the Release’s Artist or you do not have permission to manage it.', 'mds-woocommerce-integration' ),
+				__( 'This store is not assigned to the Release’s Artist or you do not have permission to manage it.', 'mds-woocommerce' ),
 				array( 'status' => 403 )
 			);
 		}

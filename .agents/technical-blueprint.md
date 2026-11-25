@@ -2,7 +2,7 @@
 
 ## Overview
 
-**MDS WooCommerce Integration** (`mds-woocommerce-integration`) extends **MDS Release Manager** with a **"Seed & Hand Off" (fire-and-forget)** multisite WooCommerce integration:
+**MDS WooCommerce Integration** (`mds-woocommerce`) extends **MDS Release Manager** with a **"Seed & Hand Off" (fire-and-forget)** multisite WooCommerce integration:
 
 - Hub admins link existing WooCommerce products on integrated stores or seed new **Draft** products via a compact Create Product modal dialog.
 - Product linking, unlinking, and seeding happen immediately via REST endpoints and trigger `MDS_RM_Sync::broadcast_to_spokes()`—there is no `save_post` overwrite handler, so Store Admins retain full ownership of product copy, pricing, and merchandising after creation.
@@ -11,7 +11,7 @@
 - **PHP Root Namespace:** `MDS\WooCommerce\` (Composer PSR-4 -> `src/`)
 - **Function / Hook / Handle Prefix:** `mds_wc_`
 - **Constant Prefix:** `MDS_WC_`
-- **Text Domain:** `mds-woocommerce-integration`
+- **Text Domain:** `mds-woocommerce`
 - **Minimum Requirements:** WordPress `7.0+` (Tested up to `7.x`), PHP `8.0+`
 
 ---
@@ -20,7 +20,7 @@
 
 ```mermaid
 flowchart TD
-    Boot["mds-woocommerce-integration.php"] --> Autoload["vendor/autoload.php (PSR-4)"]
+    Boot["mds-woocommerce.php"] --> Autoload["vendor/autoload.php (PSR-4)"]
     Boot --> Helpers["includes/helpers.php"]
     Autoload --> Plugin["MDS\\WooCommerce\\Plugin::init()"]
     Plugin --> Assets["Admin\\Assets (admin_enqueue_scripts)"]
@@ -37,8 +37,8 @@ flowchart TD
 ```
 
 ```text
-mds-woocommerce-integration/
-├── mds-woocommerce-integration.php   # Plugin header, constants, Composer autoloader bootstrap
+mds-woocommerce/
+├── mds-woocommerce.php   # Plugin header, constants, Composer autoloader bootstrap
 ├── composer.json                     # PSR-4 autoloading (MDS\WooCommerce\ -> src/) & WPCS dev deps
 ├── package.json                      # @wordpress/scripts build, ESLint, Stylelint, Prettier config
 ├── phpcs.xml.dist                    # WPCS 3.x + PHPCompatibilityWP (8.0-) ruleset
@@ -62,7 +62,7 @@ mds-woocommerce-integration/
 │       ├── artist-stores.js          # Artist meta box store refresh + batched Release sync loop
 │       ├── site-settings.js          # Visual Product Page Blueprint drag-and-drop & live preview
 │       └── product-linker.js         # Zero-CDN Store Cards, live search combobox, and Create Product modal
-├── templates/                        # Overridable via theme/mds-woocommerce-integration/*.php
+├── templates/                        # Overridable via theme/mds-woocommerce/*.php
 └── tests/
     └── store-registry.php            # Standalone PHP test for StoreRegistry, per-Artist sync, security, and backfill
 ```

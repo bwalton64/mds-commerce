@@ -36,20 +36,25 @@ final class TemplateRenderer {
 			wp_die(
 				esc_html__(
 					'The requested WooCommerce integration template is invalid.',
-					'mds-woocommerce-integration'
+					'mds-woocommerce'
 				)
 			);
 			return '';
 		}
 
-		$theme_template = locate_template( 'mds-woocommerce-integration/' . $template_name );
+		$theme_template = locate_template(
+			array(
+				'mds-woocommerce/' . $template_name,
+				'mds-woocommerce-integration/' . $template_name,
+			)
+		);
 		$template_path  = $theme_template ? $theme_template : MDS_WC_PATH . 'templates/' . $template_name;
 
 		if ( ! is_readable( $template_path ) ) {
 			wp_die(
 				esc_html__(
 					'The requested WooCommerce integration template could not be found.',
-					'mds-woocommerce-integration'
+					'mds-woocommerce'
 				)
 			);
 			return '';

@@ -176,7 +176,7 @@ final class StoreRegistry {
 					'site_name' => '' !== $blog_name
 						? $blog_name
 						/* translators: %d: WordPress site ID. */
-						: sprintf( __( 'Store #%d', 'mds-woocommerce-integration' ), $blog_id ),
+						: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $blog_id ),
 					'site_url'  => (string) home_url(),
 				);
 			}
@@ -185,74 +185,95 @@ final class StoreRegistry {
 			return $stores;
 		}
 
+		$lock_acquired = false;
+
 		if ( ! $force_refresh && function_exists( 'get_site_transient' ) ) {
 			$cached = get_site_transient( self::NETWORK_TRANSIENT_KEY );
 			if ( is_array( $cached ) ) {
 				self::$stores_cache = $cached;
 				return $cached;
 			}
-			// Stampede guard: avoid concurrent network-wide switch_to_blog() scans on cache miss.
+
+			// Stampede guard: wait briefly for an in-flight rebuild, then fall back to last-known stores.
 			if ( get_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock' ) ) {
-				return array();
+				for ( $attempt = 0; $attempt < 3; ++$attempt ) {
+					usleep( 100000 );
+					$cached = get_site_transient( self::NETWORK_TRANSIENT_KEY );
+					if ( is_array( $cached ) ) {
+						self::$stores_cache = $cached;
+						return $cached;
+					}
+				}
+
+				$fallback = get_site_option( self::NETWORK_TRANSIENT_KEY . '_fallback', array() );
+				return is_array( $fallback ) ? $fallback : array();
 			}
+
 			if ( function_exists( 'set_site_transient' ) ) {
 				set_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock', '1', 30 );
+				$lock_acquired = true;
 			}
 		}
 
-		$stores            = array();
-		$sitewide_plugins  = get_site_option( 'active_sitewide_plugins', array() );
-		$wc_network_active = is_array( $sitewide_plugins ) && array_key_exists( 'woocommerce/woocommerce.php', $sitewide_plugins );
+		$stores = array();
+		try {
+			$sitewide_plugins  = get_site_option( 'active_sitewide_plugins', array() );
+			$wc_network_active = is_array( $sitewide_plugins ) && array_key_exists( 'woocommerce/woocommerce.php', $sitewide_plugins );
 
-		$sites = function_exists( 'get_sites' )
-			? get_sites(
-				array(
-					'number'   => 0,
-					'archived' => 0,
-					'deleted'  => 0,
-					'spam'     => 0,
+			$sites = function_exists( 'get_sites' )
+				? get_sites(
+					array(
+						'number'   => 0,
+						'archived' => 0,
+						'deleted'  => 0,
+						'spam'     => 0,
+					)
 				)
-			)
-			: array();
+				: array();
 
-		foreach ( $sites as $site ) {
-			$blog_id = (int) $site->blog_id;
-			if ( $blog_id <= 0 ) {
-				continue;
-			}
-
-			$has_wc = $wc_network_active;
-			if ( ! $has_wc ) {
-				switch_to_blog( $blog_id );
-				try {
-					$has_wc = Plugin::is_woocommerce_active_on_current_site();
-				} finally {
-					restore_current_blog();
+			foreach ( $sites as $site ) {
+				$blog_id = (int) $site->blog_id;
+				if ( $blog_id <= 0 ) {
+					continue;
 				}
+
+				$has_wc = $wc_network_active;
+				if ( ! $has_wc ) {
+					switch_to_blog( $blog_id );
+					try {
+						$has_wc = Plugin::is_woocommerce_active_on_current_site();
+					} finally {
+						restore_current_blog();
+					}
+				}
+
+				if ( ! $has_wc ) {
+					continue;
+				}
+
+				$site_name = isset( $site->blogname ) ? (string) $site->blogname : '';
+				$site_url  = isset( $site->siteurl ) ? (string) $site->siteurl : '';
+
+				$stores[ $blog_id ] = array(
+					'site_id'   => $blog_id,
+					'site_name' => '' !== $site_name
+						? $site_name
+						/* translators: %d: Multisite blog ID of the WooCommerce store. */
+						: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $blog_id ),
+					'site_url'  => $site_url,
+				);
 			}
 
-			if ( ! $has_wc ) {
-				continue;
+			if ( function_exists( 'set_site_transient' ) ) {
+				set_site_transient( self::NETWORK_TRANSIENT_KEY, $stores, self::CACHE_TTL );
 			}
-
-			$site_name = isset( $site->blogname ) ? (string) $site->blogname : '';
-			$site_url  = isset( $site->siteurl ) ? (string) $site->siteurl : '';
-
-			$stores[ $blog_id ] = array(
-				'site_id'   => $blog_id,
-				'site_name' => '' !== $site_name
-					? $site_name
-					/* translators: %d: Multisite blog ID of the WooCommerce store. */
-					: sprintf( __( 'Store #%d', 'mds-woocommerce-integration' ), $blog_id ),
-				'site_url'  => $site_url,
-			);
-		}
-
-		if ( function_exists( 'set_site_transient' ) ) {
-			set_site_transient( self::NETWORK_TRANSIENT_KEY, $stores, self::CACHE_TTL );
-		}
-		if ( function_exists( 'delete_site_transient' ) ) {
-			delete_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock' );
+			if ( function_exists( 'update_site_option' ) ) {
+				update_site_option( self::NETWORK_TRANSIENT_KEY . '_fallback', $stores );
+			}
+		} finally {
+			if ( $lock_acquired && function_exists( 'delete_site_transient' ) ) {
+				delete_site_transient( self::NETWORK_TRANSIENT_KEY . '_lock' );
+			}
 		}
 
 		self::$stores_cache = $stores;

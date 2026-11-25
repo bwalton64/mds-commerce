@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Added `uninstall.php` to clean up plugin-owned options (`mds_wc_product_injection`, `mds_wc_artist_stores_migrated`) and network store caches (`mds_wc_network_stores*`) across single-site and multisite installs.
+- Added `MDS_WC_BASENAME`, `declare(strict_types=1);` in root/helper bootstrap files, and `init`-hooked `load_plugin_textdomain()` in `Plugin::load_textdomain()`.
 - **Per-Artist WooCommerce Target Stores** (`MDS\WooCommerce\Support\StoreRegistry`, `templates/artist-stores-box.php`, `src/Admin/artist-stores.js`): moved WooCommerce target-store assignment from Network Settings into a multi-select **WooCommerce Target Stores** meta box on the Hub **Artist** edit screen (`_mds_wc_target_stores` post meta).
 - **Cached Network WooCommerce Store Auto-Detection** (`StoreRegistry::get_available_stores()`): automatically discovers active WooCommerce sites across the multisite network (zero blog switches when WooCommerce is network-activated), caches results in the `mds_wc_network_stores` network transient (1-hour TTL), and invalidates automatically on WooCommerce activation/deactivation and site lifecycle hooks.
 - **Batched Artist Release Sync & Store Refresh REST Endpoints**: added `POST /mds-wc/v1/artists/{id}/sync-releases` (cursor-paged 10 releases per batch with `wp.a11y.speak()` status updates) and `POST /mds-wc/v1/stores/refresh`.
@@ -15,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Standalone PHP unit test suite in `tests/store-registry.php`.
 
 ### Changed
+- Hardened `StoreRegistry::get_available_stores()` stampede lock with `try / finally` lock release, brief retry, and a stale-while-revalidate fallback (`mds_wc_network_stores_fallback`) so concurrent Artist saves never clear `_mds_wc_target_stores`.
+- Scoped `Assets::enqueue()` to Hub `post` edit screens (`release`/`artist`) and WooCommerce-active settings screens, added `no_found_rows` / `update_post_term_cache` flags to `SiteSettings::get_preview_products()`, restricted `POST /mds-wc/v1/stores/refresh` to Hub requests, updated `src/Config.php` and `wpml-config.xml`, and removed orphaned `templates/network-settings-site.php`.
+- Fixed WooCommerce product-to-Release resolution (`ReleaseMeta::context_upc()`): now prefers the explicit `_mds_local_product_id` link on local shadow Releases (memoized per request) before falling back to product GTIN/UPC/EAN or SKU, ensuring injected Release Meta, Release Links, and Release Player blocks always render even when a product SKU and Release UPC diverge.
+- Restricted the **Releases -> Settings -> WooCommerce Integration** tab (`SiteSettings::register_tab()` and `Assets::enqueue()`) to sites where WooCommerce is actively installed (`Plugin::is_woocommerce_active_on_current_site()`).
+- Updated fresh-activation default Single Product Page Injection placements (`SiteSettings::get_default_items()`) to: **Release Meta** (Below Product Title), **Release Links** (Below Short Description / Excerpt, with **Hide Buy Now icon on product pages** enabled by default), and **Release Player** (Below Short Description / Excerpt), updated blueprint copy from "chips" to "blocks", and auto-migrated legacy `mds-release-manager/release-player` entries to `mds-rm/release-player`.
 - Scoped `mds_rm_sync_target_sites` (`ReleaseMeta::sync_targets()`) per Artist/Release using request-memoized UUID-to-Artist lookups to eliminate N+1 queries during batch syncs and prevent broadcasting Releases to unrelated WooCommerce stores.
 - Memoized frontend single-product injection eligibility (`ReleaseMeta::is_eligible_store_site()`) per request using `Plugin::is_woocommerce_active_on_current_site()`, eliminating repeated `get_site_option()` calls inside `render_block`.
 - Added `'no_found_rows' => true` and `'update_post_term_cache' => false` to `RestApi::search_products()` and enforced two-layer security in `Plugin::user_can_manage_spoke_product()` (active WC store + Artist assignment, or existing link for `DELETE /link`).
@@ -42,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Unified `mds_rm_wc_integrated_sites` and legacy `mds_rm_woo_sites` via `Plugin::get_integrated_sites()` so configured stores always participate in shadow broadcasts and product-page Release Meta injection.
 - Removed the restrictive `product_tag = release` search filter so all existing published and draft store products are searchable.
 - Renamed plugin constants (`MDS_WOO_*` -> `MDS_WC_*`), procedural helpers (`mds_woo_*` -> `mds_wc_*`), meta box ID (`mds_woo_settings` -> `mds_wc_settings`), script/style handles, CSS classes (`mds-woo-*` -> `mds-wc-*`), and inline config globals (`wp_add_inline_script()` replacing `wp_localize_script()`).
-- Updated plugin headers and `phpcs.xml.dist` for WordPress 7.0+, PHP 8.0+, text domain `mds-woocommerce-integration`, and WooCommerce product capabilities.
+- Updated plugin headers and `phpcs.xml.dist` for WordPress 7.0+, PHP 8.0+, text domain `mds-woocommerce`, and WooCommerce product capabilities.
 - Improved Section 508 / WCAG 2.1 AA accessibility with native `<dialog>` focus management, explicit form labels, ARIA combobox/listbox semantics, inline admin notices, and `wp.a11y.speak()` announcements.
 - Preserved legacy persisted keys (`mds_rm_wc_integrated_sites`, `mds_rm_woo_sites`, `mds_rm_woo_injection`, `_mds_linked_products`, `_mds_local_product_id`) for zero-breakage upgrades.
 

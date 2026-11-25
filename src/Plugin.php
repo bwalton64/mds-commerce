@@ -34,6 +34,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function init(): void {
+		add_action( 'init', array( self::class, 'load_textdomain' ) );
 		add_action( 'init', array( ReleaseMeta::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue' ) );
 		add_action( 'mds_rm_register_custom_meta_boxes', array( MetaBoxes::class, 'register' ) );
@@ -43,6 +44,19 @@ final class Plugin {
 
 		StoreRegistry::register_hooks();
 		SiteSettings::register();
+	}
+
+	/**
+	 * Load the plugin text domain on `init` per WordPress 7.x guidelines.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return void
+	 */
+	public static function load_textdomain(): void {
+		if ( defined( 'MDS_WC_BASENAME' ) ) {
+			load_plugin_textdomain( 'mds-woocommerce', false, dirname( MDS_WC_BASENAME ) . '/languages' );
+		}
 	}
 
 	/**

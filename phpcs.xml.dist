@@ -46,7 +46,7 @@
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="mds-woocommerce-integration"/>
+				<element value="mds-woocommerce"/>
 			</property>
 		</properties>
 	</rule>

@@ -190,7 +190,7 @@
 				block: blockName,
 				placement: defaultPlacement,
 				enabled: true,
-				hide_buy_now: false,
+				hide_buy_now: 'mds-rm/release-links' === blockName,
 				content: '',
 			} );
 

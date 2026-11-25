@@ -6,6 +6,8 @@
  * @since   1.0.1
  */
 
+declare(strict_types=1);
+
 defined( 'ABSPATH' ) || exit;
 
 use MDS\WooCommerce\Plugin;

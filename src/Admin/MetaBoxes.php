@@ -46,7 +46,7 @@ final class MetaBoxes {
 		if ( 'release' === $post->post_type ) {
 			add_meta_box(
 				'mds_wc_settings',
-				__( 'WooCommerce Integration', 'mds-woocommerce-integration' ),
+				__( 'WooCommerce Integration', 'mds-woocommerce' ),
 				array( self::class, 'render' ),
 				'release',
 				'normal',
@@ -55,7 +55,7 @@ final class MetaBoxes {
 		} elseif ( 'artist' === $post->post_type && is_multisite() ) {
 			add_meta_box(
 				'mds_wc_artist_stores',
-				__( 'WooCommerce Target Stores', 'mds-woocommerce-integration' ),
+				__( 'WooCommerce Target Stores', 'mds-woocommerce' ),
 				array( self::class, 'render_artist_stores' ),
 				'artist',
 				'normal',
@@ -241,7 +241,7 @@ final class MetaBoxes {
 			$store_name = is_array( $store_meta ) && ! empty( $store_meta['site_name'] )
 				? (string) $store_meta['site_name']
 				/* translators: %d: Multisite blog ID of the WooCommerce store. */
-				: sprintf( __( 'Store #%d', 'mds-woocommerce-integration' ), $store_id );
+				: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $store_id );
 			$store_url         = is_array( $store_meta ) && ! empty( $store_meta['site_url'] ) ? (string) $store_meta['site_url'] : '';
 			$current_linked_id = isset( $linked_products[ $store_id ] )
 				? absint( $linked_products[ $store_id ] )

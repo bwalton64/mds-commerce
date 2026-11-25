@@ -1,6 +1,6 @@
 # MDS WooCommerce Integration — Refactoring Plan
 
-> **Audit Scope:** Full read-only audit of `mds-woocommerce-integration` against `.agents/rules/project-config.md` and all active global WordPress rules (`wp-general.md`, `wp-php-wpcs.md`, `wp-code-docs.md`, `wp-frontend-scripts.md`, `wp-accessibility-508.md`, `wp-release-versioning.md`, `wp-testing-localwp.md`), plus cross-plugin contract verification against `mds-release-manager`.
+> **Audit Scope:** Full read-only audit of `mds-woocommerce` against `.agents/rules/project-config.md` and all active global WordPress rules (`wp-general.md`, `wp-php-wpcs.md`, `wp-code-docs.md`, `wp-frontend-scripts.md`, `wp-accessibility-508.md`, `wp-release-versioning.md`, `wp-testing-localwp.md`), plus cross-plugin contract verification against `mds-release-manager`.
 >
 > **Status:** No source files have been modified. Review each phase and confirm decisions on the flagged backward-compatibility items in Phase 4 before execution.
 
@@ -12,21 +12,21 @@ Authoritative values resolved from `.agents/rules/project-config.md`:
 
 | Variable | Target Value | Current State in Repo |
 | :--- | :--- | :--- |
-| **Plugin Name** | `MDS WooCommerce Integration` | `MDS Release Manager WooCommerce Integration` (`mds-woocommerce-integration.php`) |
-| **Plugin Slug / Folder** | `mds-woocommerce-integration` | `mds-woocommerce-integration` (matches) |
-| **Text Domain** | `mds-woocommerce-integration` | `mds-woocommerce-integration` in PHP calls, but `phpcs.xml.dist` has `mds-bandcamp-integration` and many strings are untranslated |
+| **Plugin Name** | `MDS WooCommerce Integration` | `MDS Release Manager WooCommerce Integration` (`mds-woocommerce.php`) |
+| **Plugin Slug / Folder** | `mds-woocommerce` | `mds-woocommerce` (matches) |
+| **Text Domain** | `mds-woocommerce` | `mds-woocommerce` in PHP calls, but `phpcs.xml.dist` has `mds-bandcamp-integration` and many strings are untranslated |
 | **PHP Root Namespace** | `MDS\WooCommerce\` | Configured in `composer.json` & `phpcs.xml.dist`, but `src/` does not exist yet (all classes are legacy global `MDS_Woo_*` / `MdsWoo*`) |
 | **Global Class Prefix** | `MDS_WC_` | Mixed legacy global classes: `MDS_Woo_*` and `MdsWoo*` |
 | **Function / Hook Prefix** | `mds_wc_` | `mds_woo_` across `includes/` and `templates/` |
 | **Constant Prefix** | `MDS_WC_` | `MDS_WOO_` (`MDS_WOO_VERSION`, `MDS_WOO_PATH`, `MDS_WOO_URL`) |
 | **Minimum WordPress** | `7.0` | Configured in `phpcs.xml.dist`; missing from plugin header and `readme.txt` |
 | **Tested Up To WordPress** | `7.x` | Missing (`readme.txt` does not exist yet) |
-| **Minimum PHP** | `8.0` | `>=8.0` in `composer.json` and `8.0-` in `phpcs.xml.dist`, but `7.4` in `mds-woocommerce-integration.php` |
-| **Version** | Reconcile (`1.0.1` or `1.0.0` / `0.9.0`) | Mismatch: `composer.json` is `1.0.1`, while `mds-woocommerce-integration.php` is `0.9.0` |
+| **Minimum PHP** | `8.0` | `>=8.0` in `composer.json` and `8.0-` in `phpcs.xml.dist`, but `7.4` in `mds-woocommerce.php` |
+| **Version** | Reconcile (`1.0.1` or `1.0.0` / `0.9.0`) | Mismatch: `composer.json` is `1.0.1`, while `mds-woocommerce.php` is `0.9.0` |
 | **LocalWP Site Path** | `C:\Users\Brian\Local Sites\bgw-dev\app\public` | N/A |
 | **LocalWP Site URL** | `http://bgw-dev.local/` | N/A |
 
-> **Note on Bandcamp Template Leftovers:** Both the refactoring prompt (`mds_bc_` / `MDS_BC_` / `mds-bandcamp-integration`) and `phpcs.xml.dist` (lines 6 and 49) contain leftover Bandcamp identifiers. This plan aligns strictly with `.agents/rules/project-config.md` (`MDS\WooCommerce\`, `MDS_WC_`, `mds_wc_`, `mds-woocommerce-integration`).
+> **Note on Bandcamp Template Leftovers:** Both the refactoring prompt (`mds_bc_` / `MDS_BC_` / `mds-bandcamp-integration`) and `phpcs.xml.dist` (lines 6 and 49) contain leftover Bandcamp identifiers. This plan aligns strictly with `.agents/rules/project-config.md` (`MDS\WooCommerce\`, `MDS_WC_`, `mds_wc_`, `mds-woocommerce`).
 
 ---
 
@@ -36,27 +36,27 @@ Fix existing linter mismatches, align version numbers, add missing build/ignore 
 
 - [ ] **1.1 Verify & update `composer.json`**
   - Already configured with `"name": "mds/woocommerce-integration"`, `"type": "wordpress-plugin"`, `"require": { "php": ">=8.0" }`, PSR-4 `"MDS\\WooCommerce\\": "src/"`, WPCS (`^3.1`), `PHPCompatibilityWP` (`^2.1`), and `phpcs` / `phpcbf` scripts.
-  - Reconcile `"version": "1.0.1"` with `mds-woocommerce-integration.php` (`0.9.0`) and upcoming `readme.txt`, `changelog.md`, and `package.json` per the 5-file version synchronization rule.
+  - Reconcile `"version": "1.0.1"` with `mds-woocommerce.php` (`0.9.0`) and upcoming `readme.txt`, `changelog.md`, and `package.json` per the 5-file version synchronization rule.
   - Optionally add `"files": ["includes/helpers.php"]` under `"autoload"` if keeping thin procedural helper wrappers (`mds_wc_is_active()`, `mds_wc_render_template()`).
   - Convert line endings from CRLF to LF (`\n`).
   - Run `composer install` and `composer dump-autoload` once `src/` is populated.
 - [ ] **1.2 Fix copy-paste leftovers in `phpcs.xml.dist`**
   - Line 6 `<description>`: change `MDS Bandcamp Integration` -> `MDS WooCommerce Integration`.
-  - Line 49 `WordPress.WP.I18n` `<element value="mds-bandcamp-integration"/>` -> `<element value="mds-woocommerce-integration"/>`.
+  - Line 49 `WordPress.WP.I18n` `<element value="mds-bandcamp-integration"/>` -> `<element value="mds-woocommerce"/>`.
   - Verify `WordPress.NamingConventions.PrefixAllGlobals` prefixes (`mds_wc_`, `MDS_WC_`, `MDS\WooCommerce`) pass cleanly under WPCS 3.1 when scanning `src/`, `includes/`, and `templates/`.
   - Convert line endings from CRLF to LF (`\n`).
 - [ ] **1.3 Create `package.json` (and `@wordpress/scripts` pipeline)**
-  - Add `"name": "mds-woocommerce-integration"` and synchronized `"version"`.
+  - Add `"name": "mds-woocommerce"` and synchronized `"version"`.
   - Add `@wordpress/scripts` in `devDependencies` with scripts: `build`, `start`, `lint:js`, `lint:css`, `format`.
-  - *Block Metadata Note:* No `block.json` exists because this plugin currently registers no Gutenberg blocks (only admin screens, meta boxes, and WooCommerce product hooks). If blocks are added later, author them under `src/blocks/<block-name>/block.json` with `"apiVersion": 3` and `"textdomain": "mds-woocommerce-integration"`.
+  - *Block Metadata Note:* No `block.json` exists because this plugin currently registers no Gutenberg blocks (only admin screens, meta boxes, and WooCommerce product hooks). If blocks are added later, author them under `src/blocks/<block-name>/block.json` with `"apiVersion": 3` and `"textdomain": "mds-woocommerce"`.
 - [ ] **1.4 Create `.gitignore`**
   - Exclude `/vendor/`, `/node_modules/`, `/build/`, `.env`, and local debug logs.
 - [ ] **1.5 Normalize CRLF (`\r\n`) files to LF (`\n`)**
   - Currently CRLF: `composer.json`, `phpcs.xml.dist`, `includes/class-mds-woo-release-meta.php`, `tests/settings-tab.php`, `.agents/rules/project-config.md`, and all 8 files in `templates/*.php`.
-- [ ] **1.6 Update main plugin header & bootstrap (`mds-woocommerce-integration.php`)**
+- [ ] **1.6 Update main plugin header & bootstrap (`mds-woocommerce.php`)**
   - Update `Plugin Name:` from `MDS Release Manager WooCommerce Integration` to `MDS WooCommerce Integration`.
   - Update `Requires PHP:` from `7.4` to `8.0`.
-  - Add `Requires at least: 7.0`, `Text Domain: mds-woocommerce-integration`, and (optionally) `Requires Plugins: mds-release-manager`.
+  - Add `Requires at least: 7.0`, `Text Domain: mds-woocommerce`, and (optionally) `Requires Plugins: mds-release-manager`.
   - Synchronize `Version:` header and `MDS_WC_VERSION` constant with `composer.json`.
   - Update `@package` to `MDS\WooCommerce` and format file with WPCS spacing/tabs.
   - Require `vendor/autoload.php` with a `file_exists()` guard (and an `admin_notices` fallback if missing).
@@ -97,7 +97,7 @@ Migrate all 5 legacy classes and 6 procedural wrapper/feature files from `includ
 
 ## Phase 3: Functions, Hooks, Constants, Assets & Text Domain
 
-### 3.1 Constants (`mds-woocommerce-integration.php` & all references)
+### 3.1 Constants (`mds-woocommerce.php` & all references)
 - [ ] `MDS_WOO_VERSION` -> `MDS_WC_VERSION`
 - [ ] `MDS_WOO_PATH` -> `MDS_WC_PATH`
 - [ ] `MDS_WOO_URL` -> `MDS_WC_URL`
@@ -138,7 +138,7 @@ Migrate all 5 legacy classes and 6 procedural wrapper/feature files from `includ
   - `'mds-select2'` -> `'mds_wc_select2'`
   - `'mds-select2-css'` -> `'mds_wc_select2_css'`
   - `'mds-woo-admin'` -> `'mds_wc_admin'`
-- [ ] Replace `wp_localize_script()` with `wp_add_inline_script( $handle, 'const ... = ' . wp_json_encode( $data ) . ';', 'before' )` and call `wp_set_script_translations( $handle, 'mds-woocommerce-integration' )`:
+- [ ] Replace `wp_localize_script()` with `wp_add_inline_script( $handle, 'const ... = ' . wp_json_encode( $data ) . ';', 'before' )` and call `wp_set_script_translations( $handle, 'mds-woocommerce' )`:
   - `mdsWooNetworkSettings` -> `mdsWcNetworkSettings`
   - `mdsWooProductLinker` -> `mdsWcProductLinker`
 - [ ] Rename `mds-woo-*` CSS classes & form ID across CSS, templates, `NetworkSettings.php`, JS, and `tests/settings-tab.php`:
@@ -152,8 +152,8 @@ Migrate all 5 legacy classes and 6 procedural wrapper/feature files from `includ
   - *(Already aligned)*: `.mds-wc-linker-wrapper`, `.mds-wc-select2`, `.mds-wc-generate-btn`
 - [ ] Review external CDN fallback (`https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/...` in `Assets.php` lines 85–86): consider bundling locally or relying on WooCommerce's `selectWoo` to avoid external CDN calls in `wp-admin`.
 
-### 3.5 Internationalization (`mds-woocommerce-integration`) & Section 508 Accessibility
-- [ ] Wrap all untranslated English strings with literal text domain `'mds-woocommerce-integration'`:
+### 3.5 Internationalization (`mds-woocommerce`) & Section 508 Accessibility
+- [ ] Wrap all untranslated English strings with literal text domain `'mds-woocommerce'`:
   - `src/Admin/MetaBoxes.php`: `'WooCommerce Integration'`
   - `src/Rest/RestApi.php`: all 6 `WP_Error` messages (`Missing Store ID or Release ID`, `You are not allowed to edit this release.`, `The selected store is not integrated.`, `WooCommerce is not active on the selected site.`, `You are not allowed to create products on the selected site.`, `Failed to create product.`)
   - `templates/network-settings-section.php`: `WooCommerce Sites`, `Select sites with WooCommerce active for product linking.`
@@ -182,7 +182,7 @@ Migrate all 5 legacy classes and 6 procedural wrapper/feature files from `includ
 | `mds_rm_linked_product[store_id]` | HTML Form Input Name | **LOW** | `templates/product-linker-site.php`, `class-mds-woo-save-handler.php` | Safe to rename to `mds_wc_linked_product` when template and `SaveHandler` are updated together (optional fallback read of `mds_rm_linked_product`). | Rename to `mds_wc_linked_product` in lockstep. |
 | `mds_woo_settings` | Meta Box ID | **LOW** | `class-mds-woo-meta-boxes.php` | Only resets per-user meta box sort/collapsed state in `wp_usermeta`. | Rename to `mds_wc_settings`. |
 | `#mds_use_linked_product_btn` | DOM Button ID | **LOW–MEDIUM** | `class-mds-woo-release-meta.php` (`buy_now_button()`) | May be targeted by scripts expecting that exact ID on the Release Buy Now field. | Verify no external JS targets it before renaming; if kept for parent plugin compatibility, document explicitly. |
-| `mds-woocommerce-integration/` | Theme Template Override Dir | **NONE** | `includes/helpers.php` (`locate_template()`) | Already matches `{{PLUGIN_SLUG}}`. | Keep unchanged. |
+| `mds-woocommerce/` | Theme Template Override Dir | **NONE** | `includes/helpers.php` (`locate_template()`) | Already matches `{{PLUGIN_SLUG}}`. | Keep unchanged. |
 | `upc_ean`, `_sku`, `_visibility` | External Post Meta | **DO NOT CHANGE** | `class-mds-woo-rest-api.php`, `class-mds-woo-save-handler.php` | Owned by `mds-release-manager` and WooCommerce. | Do not rename. |
 | **Transients / Shortcodes / Blocks / Custom DB Tables** | N/A | **NONE** | None exist in this repository | No transients, shortcodes, blocks, or custom tables exist in the plugin. | N/A |
 
@@ -208,4 +208,4 @@ Migrate all 5 legacy classes and 6 procedural wrapper/feature files from `includ
   - Create `README.MD` with developer setup (`composer install`, `npm install`, `npm run build`), LocalWP workflow, and architecture overview.
   - Create `readme.txt` with standard WordPress.org headers (`Requires at least: 7.0`, `Tested up to: 7.x`, `Requires PHP: 8.0`, synchronized `Stable tag`).
   - Create `changelog.md` with Keep a Changelog entries under `## [Unreleased]`.
-  - Verify 5-file version synchronization (`mds-woocommerce-integration.php`, `readme.txt`, `changelog.md`, `package.json`, `composer.json`) before tagging a release.
+  - Verify 5-file version synchronization (`mds-woocommerce.php`, `readme.txt`, `changelog.md`, `package.json`, `composer.json`) before tagging a release.

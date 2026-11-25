@@ -46,6 +46,14 @@ final class ReleaseMeta {
 	private static ?bool $is_eligible_store = null;
 
 	/**
+	 * Per-request cache of linked shadow release UPCs keyed by local WooCommerce product ID.
+	 *
+	 * @since 2.1.0
+	 * @var array<int, string>
+	 */
+	private static array $linked_upc_cache = array();
+
+	/**
 	 * Classic WooCommerce action/priority map keyed by placement identifier.
 	 *
 	 * @since 1.0.1
@@ -254,7 +262,8 @@ final class ReleaseMeta {
 	}
 
 	/**
-	 * Resolve a numeric WooCommerce product GTIN/UPC/EAN or SKU as the fallback UPC context for Release Meta.
+	 * Resolve a WooCommerce product's linked Release UPC (via `_mds_local_product_id`),
+	 * falling back to its GTIN/UPC/EAN or numeric SKU for Release Meta / Links / Player context.
 	 *
 	 * @since 1.0.1
 	 *
@@ -267,6 +276,35 @@ final class ReleaseMeta {
 			return $upc;
 		}
 
+		// 1. Prefer an explicit `_mds_local_product_id` link on a local shadow Release.
+		if ( ! array_key_exists( $post_id, self::$linked_upc_cache ) ) {
+			$linked_upc = '';
+			$linked_ids = get_posts(
+				array(
+					'post_type'              => 'release',
+					'post_status'            => 'publish',
+					'posts_per_page'         => 1,
+					'fields'                 => 'ids',
+					'no_found_rows'          => true,
+					'update_post_term_cache' => false,
+					'meta_key'               => '_mds_local_product_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Memoized lookup for the explicitly linked shadow Release.
+					'meta_value'             => (string) $post_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Memoized lookup for the explicitly linked shadow Release.
+				)
+			);
+			if ( ! empty( $linked_ids ) ) {
+				$raw_upc = get_post_meta( (int) $linked_ids[0], 'upc_ean', true );
+				if ( is_scalar( $raw_upc ) ) {
+					$linked_upc = trim( (string) $raw_upc );
+				}
+			}
+			self::$linked_upc_cache[ $post_id ] = $linked_upc;
+		}
+
+		if ( '' !== self::$linked_upc_cache[ $post_id ] ) {
+			return self::$linked_upc_cache[ $post_id ];
+		}
+
+		// 2. Fall back to WooCommerce product GTIN/UPC/EAN or numeric SKU.
 		$product = wc_get_product( $post_id );
 		if ( ! $product instanceof WC_Product ) {
 			return '';
@@ -493,7 +531,7 @@ final class ReleaseMeta {
 	public static function register_default_media_formats( array $formats ): array {
 		if ( ! isset( $formats['all'] ) ) {
 			$formats['all'] = array(
-				'label' => __( 'All', 'mds-woocommerce-integration' ),
+				'label' => __( 'All', 'mds-woocommerce' ),
 				'icon'  => 'fas fa-boxes-stacked',
 			);
 		}
@@ -509,7 +547,7 @@ final class ReleaseMeta {
 	 */
 	public static function buy_now_button(): void {
 		echo '<button type="button" class="button button-secondary" id="mds_use_linked_product_btn" disabled>'
-			. esc_html__( 'Use Linked Product URL', 'mds-woocommerce-integration' )
+			. esc_html__( 'Use Linked Product URL', 'mds-woocommerce' )
 			. '</button>';
 	}
 }

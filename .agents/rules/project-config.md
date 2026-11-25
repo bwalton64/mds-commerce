@@ -10,8 +10,8 @@ All global rules in `~/.gemini/config/rules/` resolve their plugin-specific toke
 | Variable                   | Value                                           |
 | :------------------------- | :---------------------------------------------- |
 | **Plugin Name**            | `MDS WooCommerce Integration`                   |
-| **Plugin Slug / Folder**   | `mds-woocommerce-integration`                   |
-| **Text Domain**            | `mds-woocommerce-integration`                   |
+| **Plugin Slug / Folder**   | `mds-woocommerce`                   |
+| **Text Domain**            | `mds-woocommerce`                   |
 | **PHP Root Namespace**     | `MDS\WooCommerce\`                              |
 | **Global Class Prefix**    | `MDS_WC_`                                       |
 | **Function / Hook Prefix** | `mds_wc_`                                       |

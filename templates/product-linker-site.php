@@ -34,14 +34,14 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 		</div>
 		<?php if ( $mds_wc_is_unassigned ) : ?>
 			<span class="mds-wc-badge mds-wc-badge--unassigned" data-role="connection-badge">
-				<?php esc_html_e( 'Unassigned Store', 'mds-woocommerce-integration' ); ?>
+				<?php esc_html_e( 'Unassigned Store', 'mds-woocommerce' ); ?>
 			</span>
 		<?php else : ?>
 			<span class="mds-wc-badge <?php echo $mds_wc_is_linked ? 'mds-wc-badge--linked' : 'mds-wc-badge--unlinked'; ?>" data-role="connection-badge">
 				<?php
 				echo $mds_wc_is_linked
-					? esc_html__( 'Linked', 'mds-woocommerce-integration' )
-					: esc_html__( 'Not Linked', 'mds-woocommerce-integration' );
+					? esc_html__( 'Linked', 'mds-woocommerce' )
+					: esc_html__( 'Not Linked', 'mds-woocommerce' );
 				?>
 			</span>
 		<?php endif; ?>
@@ -63,9 +63,9 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 				<div class="mds-wc-product-summary__meta">
 					<?php if ( $mds_wc_is_linked ) : ?>
 						<?php if ( 'publish' === $mds_wc_product['status'] ) : ?>
-							<span class="mds-wc-badge mds-wc-badge--publish"><?php esc_html_e( 'Published', 'mds-woocommerce-integration' ); ?></span>
+							<span class="mds-wc-badge mds-wc-badge--publish"><?php esc_html_e( 'Published', 'mds-woocommerce' ); ?></span>
 						<?php else : ?>
-							<span class="mds-wc-badge mds-wc-badge--draft"><?php esc_html_e( 'Draft — Pending Store Review', 'mds-woocommerce-integration' ); ?></span>
+							<span class="mds-wc-badge mds-wc-badge--draft"><?php esc_html_e( 'Draft — Pending Store Review', 'mds-woocommerce' ); ?></span>
 						<?php endif; ?>
 
 						<?php if ( ! empty( $mds_wc_product['price'] ) ) : ?>
@@ -78,7 +78,7 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 								echo esc_html(
 									sprintf(
 										/* translators: %s: WooCommerce product SKU. */
-										__( 'SKU: %s', 'mds-woocommerce-integration' ),
+										__( 'SKU: %s', 'mds-woocommerce' ),
 										$mds_wc_product['sku']
 									)
 								);
@@ -98,7 +98,7 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 				rel="noopener noreferrer"
 				<?php echo ( $mds_wc_is_linked && 'publish' === $mds_wc_product['status'] && ! empty( $mds_wc_product['permalink'] ) ) ? '' : 'hidden'; ?>
 			>
-				<?php esc_html_e( 'View in Store', 'mds-woocommerce-integration' ); ?>
+				<?php esc_html_e( 'View in Store', 'mds-woocommerce' ); ?>
 				<span class="dashicons dashicons-external" aria-hidden="true"></span>
 			</a>
 
@@ -109,18 +109,18 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 				rel="noopener noreferrer"
 				<?php echo ( $mds_wc_is_linked && ! empty( $mds_wc_product['edit_url'] ) ) ? '' : 'hidden'; ?>
 			>
-				<?php esc_html_e( 'Edit in Store', 'mds-woocommerce-integration' ); ?>
+				<?php esc_html_e( 'Edit in Store', 'mds-woocommerce' ); ?>
 				<span class="dashicons dashicons-external" aria-hidden="true"></span>
 			</a>
 
 			<?php if ( ! $mds_wc_is_unassigned ) : ?>
 				<button type="button" class="button button-link mds-wc-action-change">
-					<?php esc_html_e( 'Change Link', 'mds-woocommerce-integration' ); ?>
+					<?php esc_html_e( 'Change Link', 'mds-woocommerce' ); ?>
 				</button>
 			<?php endif; ?>
 
 			<button type="button" class="button button-link-delete mds-wc-action-unlink">
-				<?php esc_html_e( 'Unlink', 'mds-woocommerce-integration' ); ?>
+				<?php esc_html_e( 'Unlink', 'mds-woocommerce' ); ?>
 			</button>
 		</div>
 	</div>
@@ -129,7 +129,7 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 	<div class="mds-wc-store-card__picker" <?php echo $mds_wc_is_linked ? 'hidden' : ''; ?>>
 		<div class="mds-wc-combobox">
 			<label class="mds-wc-linker-label" for="<?php echo esc_attr( $mds_wc_search_id ); ?>">
-				<?php esc_html_e( 'Link Existing Product', 'mds-woocommerce-integration' ); ?>
+				<?php esc_html_e( 'Link Existing Product', 'mds-woocommerce' ); ?>
 			</label>
 			<div class="mds-wc-combobox__row">
 				<div class="mds-wc-combobox__input-wrap">
@@ -141,7 +141,7 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 						aria-autocomplete="list"
 						aria-expanded="false"
 						aria-controls="<?php echo esc_attr( $mds_wc_listbox_id ); ?>"
-						placeholder="<?php esc_attr_e( 'Search existing store products…', 'mds-woocommerce-integration' ); ?>"
+						placeholder="<?php esc_attr_e( 'Search existing store products…', 'mds-woocommerce' ); ?>"
 						autocomplete="off"
 					/>
 					<ul
@@ -158,11 +158,11 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 					data-store-id="<?php echo esc_attr( $mds_wc_store_id ); ?>"
 					data-store-name="<?php echo esc_attr( $mds_wc_site['store_name'] ); ?>"
 				>
-					<?php esc_html_e( 'Create Product', 'mds-woocommerce-integration' ); ?>
+					<?php esc_html_e( 'Create Product', 'mds-woocommerce' ); ?>
 				</button>
 
 				<button type="button" class="button button-secondary mds-wc-cancel-change" hidden>
-					<?php esc_html_e( 'Cancel', 'mds-woocommerce-integration' ); ?>
+					<?php esc_html_e( 'Cancel', 'mds-woocommerce' ); ?>
 				</button>
 			</div>
 		</div>
