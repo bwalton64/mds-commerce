@@ -44,6 +44,24 @@ final class Plugin {
 
 		StoreRegistry::register_hooks();
 		SiteSettings::register();
+
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && defined( 'MDS_WC_BASENAME' ) ) {
+			\MDS\ReleaseManager\Api\ExtensionApi::register_github_updater(
+				array(
+					'basename'       => MDS_WC_BASENAME,
+					'slug'           => 'mds-woocommerce',
+					'repo'           => 'bwalton64/mds-woocommerce',
+					'version'        => MDS_WC_VERSION,
+					'name'           => 'MDS WooCommerce Integration',
+					'author'         => 'Musty Dungeon Studios',
+					'homepage'       => 'https://mustydungeon.com',
+					'token_constant' => 'MDS_WC_GITHUB_TOKEN',
+					'requires'       => '7.0',
+					'tested'         => '7.0',
+					'requires_php'   => '8.0',
+				)
+			);
+		}
 	}
 
 	/**

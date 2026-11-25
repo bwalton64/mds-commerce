@@ -6,6 +6,7 @@
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
+ * Update URI: https://github.com/bwalton64/mds-woocommerce
  * Author: Musty Dungeon Studios
  * Text Domain: mds-woocommerce
  *

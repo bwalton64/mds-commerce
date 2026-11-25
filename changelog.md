@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- Wired native WordPress `Update URI` GitHub Releases updates (`bwalton64/mds-woocommerce`) via `MDS\ReleaseManager\Api\ExtensionApi::register_github_updater()` with `MDS_WC_GITHUB_TOKEN` (or shared `MDS_RM_GITHUB_TOKEN`) support for private repositories.
+
 ## [2.0.0] - 2026-11-25
 
 ### Added
