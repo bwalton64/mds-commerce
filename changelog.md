@@ -1,10 +1,25 @@
 # Changelog
 
-All notable changes to **MDS WooCommerce Integration** are documented in this file.
+All notable changes to **MDS Commerce** (formerly **MDS WooCommerce Integration**) are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.0.0] - 2026-11-26
+
+### Added
+- **Multi-Platform Provider Architecture (`MDS\Commerce\`):** Introduced `CommerceProviderInterface`, `EmbeddableProviderInterface`, `ExportPrepProviderInterface`, `ProviderManager` (`mds_cm_register_providers` filter), immutable `StoreKey` (`{provider}:{id}`), `StoreConnection`, `NormalizedProduct`, `DriftReport`, `CredentialVault` (libsodium + OpenSSL AES-256-GCM + `wp-config.php` constant overrides), and per-store `RateLimiter`.
+- **WPC External Variations Bridge (`ExternalVariationsBridge`):** Auto-detects `wpc-external-variations` (`WPCleverWpcev` / `WPCEV_VERSION`) per WooCommerce store, displays an *External Variations Ready* capability badge on the Artist CPT, and reads/writes `wpcev_url` and `wpcev_text` on `product_variation` posts for physical media POD manufacturers (`elasticStage`, `TrepStar`, `Kunaki`, `Diggers Factory`, `Qrates`).
+- **Per-Artist Variant Mapping Strategy:** Added `_mds_commerce_variant_strategy` (`ask_on_seed`, `variable_product`, `separate_products`) to the Hub Artist meta box.
+- **Store Chooser Block (`mds-commerce/store-chooser`) & Shortcode (`[mds-store-chooser]`):** Added format-grouped visitor picker with admin coupon/special-offer prioritization (`promo_badge`, 1-click accessible `coupon_code` copy, `promo_expires_gmt`, `priority_weight`) and theme-adaptive `--mds-theme-*` styles.
+- **POD Provisioning Packs & WordPress 7.x Abilities / MCP:** Added `PodProvisioningProvider`, `GET /mds-commerce/v1/pod-provisioning-pack`, and read-only WordPress Abilities (`mds-commerce/list-stores`, `mds-commerce/get-release-links`, `mds-commerce/get-pod-provisioning-pack` with `meta.mcp.public = true`).
+- **Zero-Loss Upgrade Routine (`UpgradeRoutine`):** Idempotently migrates `_mds_wc_target_stores`, `_mds_linked_products`, and `mds_wc_product_injection` while preserving `_mds_local_product_id` unchanged on Spoke shadow releases.
+- Added standalone PHP unit test suite `tests/commerce-core.php`.
+
+### Changed
+- Renamed plugin in place from `mds-woocommerce` (`MDS\WooCommerce\`) to `mds-commerce` (`MDS\Commerce\`), updated `mds-commerce.php`, `composer.json`, `phpcs.xml.dist`, `package.json`, `wpml-config.xml`, `uninstall.php`, and GitHub updater (`bwalton64/mds-commerce`).
+- Promoted `mds-commerce/v1` to primary REST API namespace while retaining `mds-wc/v1` and `mds-woo/v1` aliases, `mds_wc_*` helper wrappers, `MDS_WC_*` constants, and lazy `MDS\WooCommerce\*` `class_alias()` shims in `includes/legacy-class-aliases.php`.
 
 ## [2.0.3] - 2026-11-25
 

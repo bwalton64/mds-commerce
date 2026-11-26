@@ -1,43 +1,23 @@
-# MDS WooCommerce Integration
+# MDS Commerce
 
-Companion plugin for **MDS Release Manager** that connects your Hub music catalog with WooCommerce stores across single-site and WordPress Multisite networks.
+Multi-platform commerce companion plugin for **MDS Release Manager** (`MDS_RM_API_VERSION 2.0.0+`).
 
-- **Version:** `2.0.0`
-- **Requires:** WordPress `7.0+` (Tested up to `7.x`) · PHP `8.0+` · **MDS Release Manager `2.0.0+`** · WooCommerce
-- **License:** GPL-2.0-or-later
+Evolved in place from `mds-woocommerce`, **MDS Commerce** (`3.0.0`) provides a pluggable `CommerceProviderInterface` architecture starting with **WooCommerce Local/Multisite + WPC External Variations**, a visitor-facing **Store Chooser** Gutenberg block and shortcode with coupon/promo prioritization, **Physical Media POD Provisioning Packs** (elasticStage, TrepStar, Kunaki, Diggers Factory, Qrates), and **WordPress 7.x Abilities API / MCP** integration.
 
-> End-user and site-admin guide: [USER-MANUAL.md](USER-MANUAL.md)  
-> Version history: [changelog.md](changelog.md)  
-> Technical architecture & contracts: [.agents/technical-blueprint.md](.agents/technical-blueprint.md)
+## Key Features
 
----
+- **Provider-Agnostic Commerce Architecture:** Namespaced `StoreKey` identifiers (`wc_local:3`, `shopify:*`, `wix:*`), `ProviderManager` (`mds_cm_register_providers`), `CredentialVault` (libsodium / OpenSSL AES-256-GCM + `wp-config.php` constant overrides), and `RateLimiter`.
+- **Zero-Loss Upgrade from `mds-woocommerce`:** `UpgradeRoutine` automatically migrates `_mds_wc_target_stores`, `_mds_linked_products`, and `mds_wc_product_injection` while preserving `_mds_local_product_id` on Spoke shadow releases and retaining `mds-wc/v1` / `mds-woo/v1` REST aliases and `MDS\WooCommerce\*` class aliases.
+- **WPC External Variations Bridge:** Auto-detects `wpc-external-variations` (`wpcev_url` / `wpcev_text`) per store and advertises an *External Variations Ready* capability badge alongside per-Artist Variant Mapping Strategy controls (`ask_on_seed`, `variable_product`, `separate_products`).
+- **Store Chooser Block (`mds-commerce/store-chooser`) & Shortcode (`[mds-store-chooser]`):** Format-grouped visitor picker with automatic coupon/special-offer prioritization, 1-click accessible coupon copying, and theme-adaptive `--mds-theme-*` styles.
+- **WordPress 7.x Abilities / MCP:** Exposes read-only `mds-commerce/list-stores`, `mds-commerce/get-release-links`, and `mds-commerce/get-pod-provisioning-pack` (`meta.mcp.public = true`).
 
-## Highlights
-
-- **Per-Artist WooCommerce Target Stores:** Assign target WooCommerce stores directly on each Hub **Artist** (`_mds_wc_target_stores`) with auto-detected, cached store discovery and batched **Sync Artist Releases**.
-- **Accessible Store Cards & Draft Seeding:** Search existing products, link/unlink instantly via REST, or seed new **Draft** WooCommerce products with virtual cover art without duplicating media files.
-- **Direct Release–Product Link Resolution:** Linked products resolve directly to their shadow Release via `_mds_local_product_id` (`mds_rm_release_context_post`) — immune to UPC/SKU changes — with unlinked products falling back to WooCommerce GTIN/UPC only.
-- **Drift Detection & Selective Sync:** Store Cards detect **UPC/GTIN**, **Cover Art**, and **Product Title** differences without auto-overwriting Store Admin edits, letting admins selectively push approved fields with built-in custom-SKU protection and `wc_product_meta_lookup` synchronization.
-- **Single Product Page Block Injection:** Visual drag-and-drop placement designer under **Releases → Settings → WooCommerce Integration** (WooCommerce-active sites only) supporting Block Themes and Classic WooCommerce themes.
-
----
-
-## Local Development
+## Development Commands
 
 ```bash
-# Install PHP dependencies and WPCS 3 / PHPCompatibilityWP
-composer install
-
-# Run WPCS & PHP 8.0 compatibility checks
+composer dump-autoload -o
 composer phpcs
-composer phpcbf
-
-# Run standalone PHP unit tests
 php tests/store-registry.php
-
-# Optional JS/CSS build & lint (Node 22+)
-npm install
-npm run lint:js
-npm run lint:css
+php tests/commerce-core.php
 npm run build
 ```

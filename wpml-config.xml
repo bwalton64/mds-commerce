@@ -1,5 +1,12 @@
 <wpml-config>
 	<admin-texts>
+		<key name="mds_cm_wc_product_injection" />
 		<key name="mds_wc_product_injection" />
 	</admin-texts>
+	<custom-fields>
+		<custom-field action="copy">_mds_commerce_links</custom-field>
+		<custom-field action="copy">_mds_commerce_target_stores</custom-field>
+		<custom-field action="copy">_mds_commerce_variant_strategy</custom-field>
+		<custom-field action="ignore">_mds_local_product_id</custom-field>
+	</custom-fields>
 </wpml-config>

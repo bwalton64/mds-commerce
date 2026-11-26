@@ -1,9 +1,9 @@
-# MDS WooCommerce Integration — Technical Blueprint
+# MDS Commerce — Technical Blueprint
 
-**Plugin Slug:** `mds-woocommerce`  
-**Version:** `2.0.0` · **Requires:** `mds-release-manager` (`MDS_RM_API_VERSION = 2.0.0+`)  
-**PHP Root Namespace:** `MDS\WooCommerce\` (Composer PSR-4 → `src/`)  
-**Compatibility:** WordPress `7.0+` (Tested up to `7.x`) · PHP `8.0+` · WooCommerce (Classic & Block Themes)
+**Plugin Slug:** `mds-commerce` (in-place evolution of `mds-woocommerce`)  
+**Version:** `3.0.0` · **Requires:** `mds-release-manager` (`MDS_RM_API_VERSION = 2.0.0+`)  
+**PHP Root Namespace:** `MDS\Commerce\` (Composer PSR-4 → `src/`)  
+**Compatibility:** WordPress `7.0+` (Tested up to `7.x`) · PHP `8.0+` · Multisite Hub-and-Spoke · WooCommerce (Classic & Block Themes) · WPC External Variations (`1.1.1+`)
 
 ---
 
@@ -11,81 +11,71 @@
 
 ```mermaid
 flowchart LR
-    HubArtist["Hub Artist (_mds_wc_target_stores)"] -->|"Scoped Sync Targets"| Sync["MDS Release Manager Sync"]
-    HubRelease["Hub Release (_mds_linked_products)"] -->|"Shadow Sync (_mds_local_product_id)"| SpokeRelease["Spoke Shadow Release"]
-    HubRelease -->|"Selective Sync (POST /sync-product)"| Product["Spoke WooCommerce Product"]
-    SpokeRelease -->|"mds_rm_release_context_post"| ProductPage["Single Product Page Blocks"]
-    Product --> ProductPage
+    HubArtist["Hub Artist (_mds_commerce_target_stores + _mds_commerce_variant_strategy)"] -->|"Scoped Sync Targets"| Sync["MDS Release Manager Sync"]
+    HubRelease["Hub Release (_mds_commerce_links)"] -->|"Shadow Sync (_mds_local_product_id)"| SpokeRelease["Spoke Shadow Release"]
+    HubRelease -->|"Provider Abstraction (CommerceProviderInterface)"| WCLocal["WooCommerceLocalProvider + ExternalVariationsBridge"]
+    HubRelease -->|"Manual / AI Provisioning"| PodPrep["PodProvisioningProvider + WordPress Abilities (MCP)"]
+    WCLocal --> ProductPage["Single Product Page Injection"]
+    HubRelease --> Chooser["Store Chooser Block (mds-commerce/store-chooser)"]
 ```
 
-- **Bootstrap (`mds-woocommerce.php`):** Loads Composer PSR-4 autoloader (`vendor/autoload.php`), `includes/helpers.php`, and initializes `MDS\WooCommerce\Plugin::init()` on `mds_rm_loaded`.
-- **Per-Artist Scoped Targeting (`StoreRegistry`):** Auto-detects active WooCommerce sites across the multisite network (zero blog switches when WooCommerce is network-activated), caches the registry in `mds_wc_network_stores` with a `try/finally` stampede lock and `mds_wc_network_stores_fallback` stale-while-revalidate option, and scopes `mds_rm_sync_target_sites` per Artist (`_mds_wc_target_stores`).
-- **Direct Context Resolution (`Integration\ReleaseMeta`):** Hooks `mds_rm_release_context_post` to resolve linked WooCommerce products directly to their local shadow `WP_Post` release via `_mds_local_product_id` (memoized per request, immune to UPC/SKU changes), with `mds_rm_release_meta_context_upc` falling back to `_global_unique_id` (GTIN) only for unlinked products.
-- **Drift Detection & Selective Sync (`Support\ProductDrift`):** Compares Hub Releases against linked WooCommerce products (UPC/GTIN, Cover Art via `_mds_hub_media_id`, and normalized Title) with zero extra blog switches on render, and applies only admin-approved fields via `POST /mds-wc/v1/sync-product` with server-side custom-SKU protection, duplicate-SKU checks, and `wc_product_meta_lookup` updates.
+- **Bootstrap (`mds-commerce.php`):** Loads Composer PSR-4 autoloader (`vendor/autoload.php`), `includes/helpers.php` (`mds_cm_*` + `mds_wc_*` shims), `includes/legacy-class-aliases.php` (lazy `MDS\WooCommerce\*` aliases), and initializes `MDS\Commerce\Plugin::init()` on `mds_rm_loaded`.
+- **Provider Architecture:** `CommerceProviderInterface`, `EmbeddableProviderInterface`, `ExportPrepProviderInterface`, `ProviderManager` (`mds_cm_register_providers` filter), `StoreKey` (`{provider}:{id}`), `StoreConnection`, `NormalizedProduct`, `DriftReport`, `CredentialVault` (libsodium + OpenSSL AES-256-GCM + `wp-config.php` constants), and `RateLimiter`.
+- **Zero-Loss Migration (`Sync\UpgradeRoutine`):** Idempotently migrates `_mds_wc_target_stores` → `_mds_commerce_target_stores`, `_mds_linked_products` → `_mds_commerce_links`, and `mds_wc_product_injection` → `mds_cm_wc_product_injection`, while keeping `_mds_local_product_id` untouched on Spoke shadow releases.
+- **Physical POD & External Variations (`Providers\WooCommerceLocal\ExternalVariationsBridge`):** Auto-detects `wpc-external-variations` (`WPCleverWpcev` / `WPCEV_VERSION`) per store and reads/writes `wpcev_url` and `wpcev_text` on `product_variation` posts for elasticStage, TrepStar, Kunaki, Diggers Factory, and Qrates.
+- **Store Chooser (`Blocks\StoreChooser`):** Gutenberg block `mds-commerce/store-chooser` (API v3) and shortcode `[mds-store-chooser]`, grouped by Media Format by default with coupon/promo auto-boost (`promo_badge`, 1-click copy `coupon_code`, `promo_expires_gmt`, `priority_weight`).
+- **WordPress 7.x Abilities (`Api\Abilities`):** Exposes read-only `mds-commerce/list-stores`, `mds-commerce/get-release-links`, and `mds-commerce/get-pod-provisioning-pack` with `meta.mcp.public = true`.
 
 ---
 
 ## 2. Directory Structure
 
 ```text
-mds-woocommerce/
-├── mds-woocommerce.php               # Bootstrap, constants (MDS_WC_*), mds_rm_loaded hook
-├── uninstall.php                     # Cleans plugin options & network transients across all sites
-├── composer.json                     # PSR-4 (MDS\WooCommerce\ -> src/) + WPCS 3 / PHPCompatibilityWP
-├── package.json                      # @wordpress/scripts build/lint scripts
-├── phpcs.xml.dist                    # WordPress Coding Standards ruleset
-├── wpml-config.xml                   # WPML/Polylang custom-field & option config
-├── README.md                         # Developer documentation
-├── readme.txt                        # WordPress.org directory readme
-├── USER-MANUAL.md                    # End-user & site-admin manual
-├── changelog.md                      # Append-only Keep a Changelog history
+mds-commerce/
+├── mds-commerce.php                    # Bootstrap, MDS_CM_* (+ legacy MDS_WC_*) constants
+├── uninstall.php                       # Cleans mds_cm_* & legacy mds_wc_* options/transients
+├── composer.json                       # PSR-4 (MDS\Commerce\ -> src/) + WPCS 3 / PHPCompatibilityWP
+├── package.json                        # @wordpress/scripts build/lint scripts
+├── phpcs.xml.dist                      # WPCS ruleset (text_domain: mds-commerce)
+├── wpml-config.xml                     # WPML/Polylang admin-texts & custom-fields config
+├── blocks/store-chooser/               # mds-commerce/store-chooser (block.json, index.js, view.js, style.css)
 ├── includes/
-│   └── helpers.php                   # Template helper & backward-compatible global wrappers
+│   ├── helpers.php                     # mds_cm_* helpers + mds_wc_* backward-compatible wrappers
+│   └── legacy-class-aliases.php        # Lazy class_alias() shims for MDS\WooCommerce\*
 ├── src/
-│   ├── Config.php                    # Option/meta/transient constants
-│   ├── Plugin.php                    # Central hook orchestrator, textdomain, permissions, cache purge
-│   ├── Admin/
-│   │   ├── Assets.php                # Conditional Hub & WC settings asset enqueueing
-│   │   ├── MetaBoxes.php             # Hub Release Store Cards & Artist Target Stores meta boxes
-│   │   ├── SiteSettings.php          # Per-site Single Product Page Injection designer tab
-│   │   ├── admin.css                 # Admin UI styles (Store Cards, Drift Panel, Injection Designer)
-│   │   ├── artist-stores.js          # Artist Target Stores refresh & batched sync UI
-│   │   ├── product-linker.js         # Accessible Store Cards, combobox search, Create modal, Drift sync
-│   │   └── site-settings.js          # Drag-and-drop Single Product Injection designer
-│   ├── Integration/
-│   │   └── ReleaseMeta.php           # Context resolution, sync target scoping, Classic & Block injection
-│   ├── Rest/
-│   │   └── RestApi.php               # mds-wc/v1 (and legacy mds-woo/v1) REST endpoints
-│   └── Support/
-│       ├── ProductDrift.php          # Release-to-Product drift detection & selective sync engine
-│       ├── StoreRegistry.php         # Cached multisite WC store discovery & Artist target store registry
-│       └── TemplateRenderer.php      # Theme-overridable PHP template renderer
-├── templates/                        # Overridable admin view templates
-└── tests/
-    └── store-registry.php            # Standalone PHP unit tests
+│   ├── Config.php                      # Option/meta/transient keys, REST namespaces, strategies
+│   ├── Plugin.php                      # Service wiring, UpgradeRoutine, GitHub updater
+│   ├── Admin/                          # Assets, MetaBoxes (Variant Strategy + Capabilities), SiteSettings
+│   ├── Api/                            # Abilities (WordPress 7.x Abilities API / MCP)
+│   ├── Blocks/                         # StoreChooser block & [mds-store-chooser] shortcode
+│   ├── Contracts/                      # CommerceProviderInterface, EmbeddableProviderInterface, ExportPrepProviderInterface
+│   ├── Integration/                    # ReleaseMeta (Context resolution, Sync scoping, WC injection)
+│   ├── Model/                          # StoreKey, StoreConnection, NormalizedProduct, DriftReport
+│   ├── Providers/
+│   │   ├── WooCommerceLocal/           # WooCommerceLocalProvider, ExternalVariationsBridge
+│   │   └── Prep/                       # PodProvisioningProvider (elasticStage, TrepStar, Kunaki, Diggers Factory, Qrates)
+│   ├── Registry/                       # ProviderManager
+│   ├── Rest/                           # RestApi (mds-commerce/v1 + legacy mds-wc/v1 & mds-woo/v1)
+│   ├── Security/                       # CredentialVault (libsodium + OpenSSL + wp-config constants)
+│   └── Support/                        # ProductDrift, StoreRegistry, TemplateRenderer
+│   └── Sync/                           # RateLimiter, UpgradeRoutine
+├── templates/                          # Overridable admin view templates
+└── tests/                              # store-registry.php, commerce-core.php
 ```
 
 ---
 
-## 3. REST API Endpoints (`mds-wc/v1`, legacy alias `mds-woo/v1`)
+## 3. REST API Endpoints (`mds-commerce/v1`, legacy aliases `mds-wc/v1`, `mds-woo/v1`)
 
 | Method & Route | Permission | Purpose |
 | :--- | :--- | :--- |
-| `GET /search` | `edit_posts` + store access | Search published/draft products on an assigned WooCommerce store |
+| `GET /search` | `edit_posts` + store access | Search published/draft products on an assigned store |
 | `POST /link` | `edit_posts` + store access | Link an existing product to a Release, broadcast link, return product + drift |
 | `DELETE /link` | `edit_posts` + store/legacy access | Unlink a product from a Release and broadcast |
-| `POST /generate` | `edit_posts` + store access | Seed a new Draft (or Published) WooCommerce product with virtual cover art |
+| `POST /generate` | `edit_posts` + store access | Seed a new Draft (or Published) product with virtual cover art |
 | `GET /taxonomies` | `edit_posts` + store access | Fetch `product_cat` and `product_tag` terms for the Create Product modal |
 | `POST /sync-product` | `edit_posts` + store/legacy access | Selectively push approved drift fields (`upc`, `sku`, `thumbnail`, `title`) |
+| `GET /pod-provisioning-pack` | `edit_post` | Return verified Release metadata, tracklist, and artwork specs for POD portals |
 | `POST /settings` | `manage_options` | Save per-site Single Product Page Injection settings |
-| `POST /stores/refresh` | Hub + `edit_posts` | Invalidate and rebuild the network WooCommerce store cache |
+| `POST /stores/refresh` | Hub + `edit_posts` | Invalidate and rebuild the network store cache |
 | `POST /artists/{id}/sync-releases` | Hub + `edit_post` | Cursor-paged (10/batch) Artist + Release broadcast to assigned stores |
-
----
-
-## 4. Storage Schema & Uninstall Parity
-
-- **Site Options:** `mds_wc_product_injection` (per-site block injection items), `mds_wc_artist_stores_migrated` (one-time backfill flag).
-- **Network Site Options / Transients:** `mds_wc_network_stores` (transient), `mds_wc_network_stores_lock` (transient), `mds_wc_network_stores_fallback` (site option).
-- **Post Meta:** `_mds_wc_target_stores` (Hub Artist), `_mds_linked_products` (Hub Release), `_mds_local_product_id` (Spoke shadow Release, protected via `mds_rm_spoke_protected_meta_keys`), `_mds_wc_seeded_from_release` / `_mds_wc_seeded_by` / `_mds_wc_seeded_gmt` (Product).
-- **Uninstall (`uninstall.php`):** Removes all plugin-owned options and network transients across single-site and all Multisite blogs inside `try/finally`, while preserving WooCommerce products and linked release post meta.

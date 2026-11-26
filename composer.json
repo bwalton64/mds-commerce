@@ -1,7 +1,7 @@
 {
-  "name": "mds/woocommerce-integration",
-  "description": "MDS WooCommerce Integration plugin for WordPress.",
-  "version": "2.0.3",
+  "name": "mds/commerce",
+  "description": "Multi-platform commerce companion plugin for MDS Release Manager.",
+  "version": "3.0.0",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
@@ -15,7 +15,7 @@
   },
   "autoload": {
     "psr-4": {
-      "MDS\\WooCommerce\\": "src/"
+      "MDS\\Commerce\\": "src/"
     }
   },
   "config": {

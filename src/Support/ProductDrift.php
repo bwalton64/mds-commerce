@@ -5,15 +5,15 @@
  * Compares monitored Hub Release fields (UPC/GTIN, Featured Image, Title) against
  * a linked WooCommerce product and applies only the fields an admin explicitly approves.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   2.1.0
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce\Support;
+namespace MDS\Commerce\Support;
 
-use MDS\WooCommerce\Rest\RestApi;
+use MDS\Commerce\Rest\RestApi;
 use WC_Data_Exception;
 use WC_Product;
 use WP_Post;
@@ -77,8 +77,8 @@ final class ProductDrift {
 
 			$items[] = array(
 				'field'         => 'upc',
-				'label'         => __( 'UPC / EAN (GTIN)', 'mds-woocommerce' ),
-				'product_value' => '' !== $product_gtin_str ? $product_gtin_str : __( 'Not set', 'mds-woocommerce' ),
+				'label'         => __( 'UPC / EAN (GTIN)', 'mds-commerce' ),
+				'product_value' => '' !== $product_gtin_str ? $product_gtin_str : __( 'Not set', 'mds-commerce' ),
 				'release_value' => $release_upc_str,
 				'sku_option'    => array(
 					'available'   => $sku_matches_old_upc,
@@ -104,18 +104,18 @@ final class ProductDrift {
 
 			if ( $thumb_drifts ) {
 				if ( $product_thumb_id <= 0 ) {
-					$product_thumb_label = __( 'No image', 'mds-woocommerce' );
+					$product_thumb_label = __( 'No image', 'mds-commerce' );
 				} elseif ( ! $is_same_blog && 0 === $product_hub_media_id ) {
-					$product_thumb_label = __( 'Custom store image', 'mds-woocommerce' );
+					$product_thumb_label = __( 'Custom store image', 'mds-commerce' );
 				} else {
-					$product_thumb_label = __( 'Previous cover art', 'mds-woocommerce' );
+					$product_thumb_label = __( 'Previous cover art', 'mds-commerce' );
 				}
 
 				$items[] = array(
 					'field'         => 'thumbnail',
-					'label'         => __( 'Cover Art', 'mds-woocommerce' ),
+					'label'         => __( 'Cover Art', 'mds-commerce' ),
 					'product_value' => $product_thumb_label,
-					'release_value' => __( 'Current Release cover art', 'mds-woocommerce' ),
+					'release_value' => __( 'Current Release cover art', 'mds-commerce' ),
 				);
 			}
 		}
@@ -129,8 +129,8 @@ final class ProductDrift {
 		if ( '' !== $release_title && self::normalize_title( $release_title ) !== self::normalize_title( $product_title ) ) {
 			$items[] = array(
 				'field'         => 'title',
-				'label'         => __( 'Product Title', 'mds-woocommerce' ),
-				'product_value' => '' !== $product_title ? $product_title : __( 'Untitled', 'mds-woocommerce' ),
+				'label'         => __( 'Product Title', 'mds-commerce' ),
+				'product_value' => '' !== $product_title ? $product_title : __( 'Untitled', 'mds-commerce' ),
 				'release_value' => $release_title,
 			);
 		}
@@ -183,7 +183,7 @@ final class ProductDrift {
 
 			if ( ! $can_sync ) {
 				$want_sku   = false;
-				$warnings[] = __( 'Skipped SKU update because this product uses a custom SKU.', 'mds-woocommerce' );
+				$warnings[] = __( 'Skipped SKU update because this product uses a custom SKU.', 'mds-commerce' );
 			}
 		}
 
@@ -250,7 +250,7 @@ final class ProductDrift {
 			if ( $want_sku && '' !== (string) ( $payload['upc'] ?? '' ) ) {
 				$new_sku = (string) $payload['upc'];
 				if ( self::sku_exists_on_other_product( $new_sku, $product_id ) ) {
-					$warnings[] = __( 'Skipped SKU update because another product on this store already uses that SKU.', 'mds-woocommerce' );
+					$warnings[] = __( 'Skipped SKU update because another product on this store already uses that SKU.', 'mds-commerce' );
 				} else {
 					update_post_meta( $product_id, '_sku', $new_sku );
 					$lookup_updates['sku'] = $new_sku;

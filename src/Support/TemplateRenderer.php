@@ -1,14 +1,14 @@
 <?php
 /**
- * Template loader and renderer for WooCommerce integration views.
+ * Template loader and renderer for MDS Commerce views.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce\Support;
+namespace MDS\Commerce\Support;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 final class TemplateRenderer {
 
 	/**
-	 * Load a WooCommerce integration PHP template and return its rendered output.
+	 * Load an MDS Commerce PHP template and return its rendered output.
 	 *
 	 * @since 1.0.1
 	 *
@@ -35,8 +35,8 @@ final class TemplateRenderer {
 		) {
 			wp_die(
 				esc_html__(
-					'The requested WooCommerce integration template is invalid.',
-					'mds-woocommerce'
+					'The requested MDS Commerce template is invalid.',
+					'mds-commerce'
 				)
 			);
 			return '';
@@ -44,17 +44,18 @@ final class TemplateRenderer {
 
 		$theme_template = locate_template(
 			array(
+				'mds-commerce/' . $template_name,
 				'mds-woocommerce/' . $template_name,
 				'mds-woocommerce-integration/' . $template_name,
 			)
 		);
-		$template_path  = $theme_template ? $theme_template : MDS_WC_PATH . 'templates/' . $template_name;
+		$template_path  = $theme_template ? $theme_template : MDS_CM_PATH . 'templates/' . $template_name;
 
 		if ( ! is_readable( $template_path ) ) {
 			wp_die(
 				esc_html__(
-					'The requested WooCommerce integration template could not be found.',
-					'mds-woocommerce'
+					'The requested MDS Commerce template could not be found.',
+					'mds-commerce'
 				)
 			);
 			return '';

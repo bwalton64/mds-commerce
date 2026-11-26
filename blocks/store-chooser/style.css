@@ -1,0 +1,125 @@
+.mds-cm-store-chooser {
+	--mds-cm-bg: var(--mds-theme-surface, #ffffff);
+	--mds-cm-text: var(--mds-theme-text, #1d2327);
+	--mds-cm-muted: var(--mds-theme-muted, #50575e);
+	--mds-cm-border: var(--mds-theme-border, rgba(0, 0, 0, 0.12));
+	--mds-cm-accent: var(--mds-theme-accent, #2271b1);
+	color: var(--mds-cm-text);
+	margin: 1.5rem 0;
+}
+
+.mds-cm-chooser-heading {
+	margin: 0 0 1rem;
+	font-size: 1.25rem;
+}
+
+.mds-cm-group-title {
+	margin: 1.25rem 0 0.5rem;
+	font-size: 0.95rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--mds-cm-muted);
+}
+
+.mds-cm-offer-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 0.75rem;
+}
+
+.mds-cm-offer-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.875rem 1rem;
+	background: var(--mds-cm-bg);
+	border: 1px solid var(--mds-cm-border);
+	border-radius: 6px;
+}
+
+.mds-cm-offer-item.is-promoted {
+	border-color: var(--mds-cm-accent);
+	box-shadow: 0 0 0 1px var(--mds-cm-accent);
+}
+
+.mds-cm-offer-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.mds-cm-offer-store {
+	font-weight: 600;
+}
+
+.mds-cm-badge {
+	display: inline-block;
+	padding: 0.15rem 0.5rem;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.mds-cm-badge-promo {
+	background: var(--mds-cm-accent);
+	color: #ffffff;
+}
+
+.mds-cm-badge-stock {
+	background: rgba(0, 0, 0, 0.06);
+	color: var(--mds-cm-text);
+}
+
+.mds-cm-offer-meta {
+	display: flex;
+	gap: 0.75rem;
+	margin-top: 0.25rem;
+	font-size: 0.9rem;
+	color: var(--mds-cm-muted);
+}
+
+.mds-cm-coupon-row {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin-top: 0.4rem;
+	font-size: 0.85rem;
+}
+
+.mds-cm-coupon-code {
+	padding: 0.1rem 0.4rem;
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.mds-cm-copy-coupon {
+	cursor: pointer;
+	padding: 0.15rem 0.5rem;
+	border: 1px solid var(--mds-cm-border);
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	font-size: 0.8rem;
+}
+
+.mds-cm-offer-cta {
+	display: inline-block;
+	padding: 0.5rem 1rem;
+	border-radius: 5px;
+	background: var(--mds-cm-accent);
+	color: #ffffff;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.mds-cm-offer-cta:focus-visible,
+.mds-cm-copy-coupon:focus-visible {
+	outline: 2px solid var(--mds-cm-accent);
+	outline-offset: 2px;
+}

@@ -1,26 +1,29 @@
 <?php
 /**
- * Central plugin bootstrap and service registrar.
+ * Central plugin bootstrap and service registrar for MDS Commerce.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce;
+namespace MDS\Commerce;
 
-use MDS\WooCommerce\Admin\Assets;
-use MDS\WooCommerce\Admin\MetaBoxes;
-use MDS\WooCommerce\Admin\SiteSettings;
-use MDS\WooCommerce\Integration\ReleaseMeta;
-use MDS\WooCommerce\Rest\RestApi;
-use MDS\WooCommerce\Support\StoreRegistry;
+use MDS\Commerce\Admin\Assets;
+use MDS\Commerce\Admin\MetaBoxes;
+use MDS\Commerce\Admin\SiteSettings;
+use MDS\Commerce\Api\Abilities;
+use MDS\Commerce\Blocks\StoreChooser;
+use MDS\Commerce\Integration\ReleaseMeta;
+use MDS\Commerce\Rest\RestApi;
+use MDS\Commerce\Support\StoreRegistry;
+use MDS\Commerce\Sync\UpgradeRoutine;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Coordinates hook registration and shared plugin environment checks.
+ * Coordinates hook registration, schema upgrades, and shared plugin environment checks.
  *
  * @since 1.0.1
  */
@@ -36,6 +39,8 @@ final class Plugin {
 	public static function init(): void {
 		add_action( 'init', array( self::class, 'load_textdomain' ) );
 		add_action( 'init', array( ReleaseMeta::class, 'register' ) );
+		add_action( 'init', array( StoreChooser::class, 'register' ) );
+		add_action( 'admin_init', array( UpgradeRoutine::class, 'maybe_upgrade' ), 5 );
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue' ) );
 		add_action( 'mds_rm_register_custom_meta_boxes', array( MetaBoxes::class, 'register' ) );
 		add_action( 'mds_rm_save_artist_meta', array( MetaBoxes::class, 'save_artist_stores_hook' ), 10, 2 );
@@ -44,18 +49,19 @@ final class Plugin {
 
 		StoreRegistry::register_hooks();
 		SiteSettings::register();
+		Abilities::register();
 
-		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && defined( 'MDS_WC_BASENAME' ) ) {
+		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && defined( 'MDS_CM_BASENAME' ) ) {
 			\MDS\ReleaseManager\Api\ExtensionApi::register_github_updater(
 				array(
-					'basename'       => MDS_WC_BASENAME,
-					'slug'           => 'mds-woocommerce',
-					'repo'           => 'bwalton64/mds-woocommerce',
-					'version'        => MDS_WC_VERSION,
-					'name'           => 'MDS WooCommerce Integration',
+					'basename'       => MDS_CM_BASENAME,
+					'slug'           => 'mds-commerce',
+					'repo'           => 'bwalton64/mds-commerce',
+					'version'        => MDS_CM_VERSION,
+					'name'           => 'MDS Commerce',
 					'author'         => 'Musty Dungeon Studios',
 					'homepage'       => 'https://mustydungeon.com',
-					'token_constant' => 'MDS_WC_GITHUB_TOKEN',
+					'token_constant' => 'MDS_CM_GITHUB_TOKEN',
 					'requires'       => '7.0',
 					'tested'         => '7.0',
 					'requires_php'   => '8.0',
@@ -72,19 +78,17 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function load_textdomain(): void {
-		if ( defined( 'MDS_WC_BASENAME' ) ) {
-			load_plugin_textdomain( 'mds-woocommerce', false, dirname( MDS_WC_BASENAME ) . '/languages' );
+		if ( defined( 'MDS_CM_BASENAME' ) ) {
+			load_plugin_textdomain( 'mds-commerce', false, dirname( MDS_CM_BASENAME ) . '/languages' );
 		}
 	}
 
 	/**
 	 * Request a coalesced cache purge through MDS Release Manager's centralized cache manager.
 	 *
-	 * Safely becomes a no-op when paired with an older Release Manager version without MDS_RM_Cache.
-	 *
 	 * @since 1.0.1
 	 *
-	 * @param string $context Trigger context label (e.g., 'woocommerce_settings', 'woocommerce_link').
+	 * @param string $context Trigger context label (e.g., 'commerce_settings', 'woocommerce_link').
 	 * @param int    $blog_id Optional target multisite blog ID (0 for current site).
 	 * @return void
 	 */
@@ -100,7 +104,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Clear WooCommerce product transients after a manual or WooCommerce-settings cache purge.
+	 * Clear WooCommerce product transients after a manual or commerce-settings cache purge.
 	 *
 	 * @since 1.0.1
 	 *
@@ -114,7 +118,7 @@ final class Plugin {
 		unset( $purged, $skipped, $blog_id );
 
 		if (
-			in_array( $context, array( 'manual', 'woocommerce_settings' ), true )
+			in_array( $context, array( 'manual', 'woocommerce_settings', 'commerce_settings' ), true )
 			&& function_exists( 'wc_delete_product_transients' )
 		) {
 			wc_delete_product_transients();
@@ -188,17 +192,11 @@ final class Plugin {
 	/**
 	 * Determine whether the current Hub user may link or seed products on a store for a release.
 	 *
-	 * Enforces two-layer security:
-	 * 1. The target store must be an active WooCommerce site detected by StoreRegistry.
-	 * 2. The target store must be assigned to the Release's Artist (or already hold a link
-	 *    on this Release when $allow_existing_link is true for unlink operations).
-	 *
 	 * @since 1.0.1
 	 *
 	 * @param int  $release_id          Release post ID on the hub site.
 	 * @param int  $store_id            Target WooCommerce store site ID.
-	 * @param bool $allow_existing_link Whether to allow stores that are unassigned on the Artist
-	 *                                  but still hold a legacy link on this Release (for unlink).
+	 * @param bool $allow_existing_link Whether to allow legacy linked stores during unlink.
 	 * @return bool True when permitted.
 	 */
 	public static function user_can_manage_spoke_product(
@@ -228,14 +226,25 @@ final class Plugin {
 		}
 
 		/**
-		 * Filters whether the current Hub user can link or seed a WooCommerce product on a store.
+		 * Filters whether the current Hub user can manage a store product for a release.
 		 *
-		 * @since 1.0.1
+		 * @since 3.0.0
 		 *
 		 * @param bool $can_manage Whether the user is allowed to manage the link/seed action.
 		 * @param int  $release_id Release post ID on the hub site.
+		 * @param int  $store_id   Target store site ID.
+		 */
+		$allowed = (bool) apply_filters( 'mds_cm_user_can_manage_store', true, $release_id, $store_id );
+
+		/**
+		 * Legacy filter retained for backward compatibility with MDS WooCommerce hooks.
+		 *
+		 * @since 1.0.1
+		 *
+		 * @param bool $allowed    Whether the user is allowed to manage the link/seed action.
+		 * @param int  $release_id Release post ID on the hub site.
 		 * @param int  $store_id   Target WooCommerce store site ID.
 		 */
-		return (bool) apply_filters( 'mds_wc_user_can_manage_spoke_product', true, $release_id, $store_id );
+		return (bool) apply_filters( 'mds_wc_user_can_manage_spoke_product', $allowed, $release_id, $store_id );
 	}
 }

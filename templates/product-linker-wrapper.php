@@ -2,7 +2,7 @@
 /**
  * WooCommerce product linker wrapper.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
@@ -17,7 +17,7 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 
 	<?php if ( $mds_wc_is_auto_draft ) : ?>
 		<p class="mds-wc-draft-notice">
-			<?php esc_html_e( 'Save a draft of this Release first to link or create WooCommerce products on your integrated stores.', 'mds-woocommerce' ); ?>
+			<?php esc_html_e( 'Save a draft of this Release first to link or create WooCommerce products on your integrated stores.', 'mds-commerce' ); ?>
 		</p>
 	<?php elseif ( empty( $args['sites'] ) ) : ?>
 		<?php

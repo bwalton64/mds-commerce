@@ -2,17 +2,17 @@
 /**
  * WooCommerce-specific Release Manager display and synchronization hooks.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce\Integration;
+namespace MDS\Commerce\Integration;
 
-use MDS\WooCommerce\Admin\SiteSettings;
-use MDS\WooCommerce\Plugin;
-use MDS\WooCommerce\Support\StoreRegistry;
+use MDS\Commerce\Admin\SiteSettings;
+use MDS\Commerce\Plugin;
+use MDS\Commerce\Support\StoreRegistry;
 use WC_Product;
 use WP_Block;
 use WP_Block_Type_Registry;
@@ -542,7 +542,7 @@ final class ReleaseMeta {
 	public static function register_default_media_formats( array $formats ): array {
 		if ( ! isset( $formats['all'] ) ) {
 			$formats['all'] = array(
-				'label' => __( 'All', 'mds-woocommerce' ),
+				'label' => __( 'All', 'mds-commerce' ),
 				'icon'  => 'fas fa-boxes-stacked',
 			);
 		}
@@ -558,7 +558,7 @@ final class ReleaseMeta {
 	 */
 	public static function buy_now_button(): void {
 		echo '<button type="button" class="button button-secondary" id="mds_use_linked_product_btn" disabled>'
-			. esc_html__( 'Use Linked Product URL', 'mds-woocommerce' )
+			. esc_html__( 'Use Linked Product URL', 'mds-commerce' )
 			. '</button>';
 	}
 }

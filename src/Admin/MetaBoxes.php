@@ -2,19 +2,19 @@
 /**
  * WooCommerce release and artist meta box rendering and saving.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce\Admin;
+namespace MDS\Commerce\Admin;
 
-use MDS\WooCommerce\Plugin;
-use MDS\WooCommerce\Rest\RestApi;
-use MDS\WooCommerce\Support\ProductDrift;
-use MDS\WooCommerce\Support\StoreRegistry;
-use MDS\WooCommerce\Support\TemplateRenderer;
+use MDS\Commerce\Plugin;
+use MDS\Commerce\Rest\RestApi;
+use MDS\Commerce\Support\ProductDrift;
+use MDS\Commerce\Support\StoreRegistry;
+use MDS\Commerce\Support\TemplateRenderer;
 use WP_Post;
 
 defined( 'ABSPATH' ) || exit;
@@ -47,7 +47,7 @@ final class MetaBoxes {
 		if ( 'release' === $post->post_type ) {
 			add_meta_box(
 				'mds_wc_settings',
-				__( 'WooCommerce Integration', 'mds-woocommerce' ),
+				__( 'MDS Commerce — Connected Stores', 'mds-commerce' ),
 				array( self::class, 'render' ),
 				'release',
 				'normal',
@@ -56,7 +56,7 @@ final class MetaBoxes {
 		} elseif ( 'artist' === $post->post_type && is_multisite() ) {
 			add_meta_box(
 				'mds_wc_artist_stores',
-				__( 'WooCommerce Target Stores', 'mds-woocommerce' ),
+				__( 'MDS Commerce — Target Stores & Variant Strategy', 'mds-commerce' ),
 				array( self::class, 'render_artist_stores' ),
 				'artist',
 				'normal',
@@ -66,7 +66,7 @@ final class MetaBoxes {
 	}
 
 	/**
-	 * Render the Target WooCommerce Stores meta box on the Artist edit screen.
+	 * Render the Target Stores & Variant Strategy meta box on the Artist edit screen.
 	 *
 	 * @since 1.1.0
 	 *
@@ -78,15 +78,26 @@ final class MetaBoxes {
 		$assigned      = StoreRegistry::get_artist_target_stores( (int) $post->ID );
 		$is_auto_draft = 'auto-draft' === $post->post_status;
 		$release_count = $is_auto_draft ? 0 : self::count_artist_releases( (int) $post->ID );
+		$strategy      = (string) get_post_meta( (int) $post->ID, \MDS\Commerce\Config::ARTIST_VARIANT_STRATEGY_META_KEY, true );
+		if ( ! in_array( $strategy, \MDS\Commerce\Config::VARIANT_STRATEGIES, true ) ) {
+			$strategy = 'ask_on_seed';
+		}
+
+		$enriched_stores = array();
+		foreach ( $stores as $site_id => $store ) {
+			$store['supports_external_variations'] = \MDS\Commerce\Providers\WooCommerceLocal\ExternalVariationsBridge::is_active_on_blog( (int) $site_id );
+			$enriched_stores[]                     = $store;
+		}
 
 		$markup = TemplateRenderer::render(
 			'artist-stores-box.php',
 			array(
-				'artist_id'     => (int) $post->ID,
-				'stores'        => array_values( $stores ),
-				'assigned'      => $assigned,
-				'release_count' => $release_count,
-				'is_auto_draft' => $is_auto_draft,
+				'artist_id'        => (int) $post->ID,
+				'stores'           => $enriched_stores,
+				'assigned'         => $assigned,
+				'release_count'    => $release_count,
+				'is_auto_draft'    => $is_auto_draft,
+				'variant_strategy' => $strategy,
 			)
 		);
 
@@ -147,6 +158,19 @@ final class MetaBoxes {
 		$previous  = StoreRegistry::get_artist_target_stores( $post_id );
 
 		update_post_meta( $post_id, StoreRegistry::ARTIST_META_KEY, $sanitized );
+		update_post_meta(
+			$post_id,
+			\MDS\Commerce\Config::ARTIST_STORES_META_KEY,
+			\MDS\Commerce\Sync\UpgradeRoutine::convert_legacy_store_ids( $sanitized )
+		);
+
+		if ( isset( $post_data['mds_cm_variant_strategy'] ) && is_scalar( $post_data['mds_cm_variant_strategy'] ) ) {
+			$raw_strategy = sanitize_key( wp_unslash( (string) $post_data['mds_cm_variant_strategy'] ) );
+			if ( in_array( $raw_strategy, \MDS\Commerce\Config::VARIANT_STRATEGIES, true ) ) {
+				update_post_meta( $post_id, \MDS\Commerce\Config::ARTIST_VARIANT_STRATEGY_META_KEY, $raw_strategy );
+			}
+		}
+
 		StoreRegistry::reset_request_cache();
 
 		$changed_stores = array_values(
@@ -243,7 +267,7 @@ final class MetaBoxes {
 			$store_name = is_array( $store_meta ) && ! empty( $store_meta['site_name'] )
 				? (string) $store_meta['site_name']
 				/* translators: %d: Multisite blog ID of the WooCommerce store. */
-				: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $store_id );
+				: sprintf( __( 'Store #%d', 'mds-commerce' ), $store_id );
 			$store_url         = is_array( $store_meta ) && ! empty( $store_meta['site_url'] ) ? (string) $store_meta['site_url'] : '';
 			$current_linked_id = isset( $linked_products[ $store_id ] )
 				? absint( $linked_products[ $store_id ] )

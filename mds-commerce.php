@@ -1,16 +1,16 @@
 <?php
 /**
- * Plugin Name: MDS WooCommerce Integration
- * Description: Extends MDS Release Manager with Network WooCommerce syncing.
- * Version: 2.0.3
+ * Plugin Name: MDS Commerce
+ * Description: Multi-platform commerce companion for MDS Release Manager with WooCommerce Multisite syncing, external POD variations, and Store Chooser blocks.
+ * Version: 3.0.0
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
- * Update URI: https://github.com/bwalton64/mds-woocommerce
+ * Update URI: https://github.com/bwalton64/mds-commerce
  * Author: Musty Dungeon Studios
- * Text Domain: mds-woocommerce
+ * Text Domain: mds-commerce
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.0.1
  */
 
@@ -18,18 +18,36 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MDS_WC_VERSION', '2.0.3' );
-define( 'MDS_WC_FILE', __FILE__ );
-define( 'MDS_WC_PATH', plugin_dir_path( __FILE__ ) );
-define( 'MDS_WC_URL', plugin_dir_url( __FILE__ ) );
-define( 'MDS_WC_BASENAME', plugin_basename( __FILE__ ) );
+define( 'MDS_CM_VERSION', '3.0.0' );
+define( 'MDS_CM_FILE', __FILE__ );
+define( 'MDS_CM_PATH', plugin_dir_path( __FILE__ ) );
+define( 'MDS_CM_URL', plugin_dir_url( __FILE__ ) );
+define( 'MDS_CM_BASENAME', plugin_basename( __FILE__ ) );
 
-$mds_wc_autoloader = MDS_WC_PATH . 'vendor/autoload.php';
+// Legacy constants retained for backward compatibility with companion snippets.
+if ( ! defined( 'MDS_WC_VERSION' ) ) {
+	define( 'MDS_WC_VERSION', MDS_CM_VERSION );
+}
+if ( ! defined( 'MDS_WC_FILE' ) ) {
+	define( 'MDS_WC_FILE', MDS_CM_FILE );
+}
+if ( ! defined( 'MDS_WC_PATH' ) ) {
+	define( 'MDS_WC_PATH', MDS_CM_PATH );
+}
+if ( ! defined( 'MDS_WC_URL' ) ) {
+	define( 'MDS_WC_URL', MDS_CM_URL );
+}
+if ( ! defined( 'MDS_WC_BASENAME' ) ) {
+	define( 'MDS_WC_BASENAME', MDS_CM_BASENAME );
+}
 
-if ( file_exists( $mds_wc_autoloader ) ) {
-	require_once $mds_wc_autoloader;
-	require_once MDS_WC_PATH . 'includes/helpers.php';
-	add_action( 'mds_rm_loaded', array( \MDS\WooCommerce\Plugin::class, 'init' ) );
+$mds_cm_autoloader = MDS_CM_PATH . 'vendor/autoload.php';
+
+if ( file_exists( $mds_cm_autoloader ) ) {
+	require_once $mds_cm_autoloader;
+	require_once MDS_CM_PATH . 'includes/helpers.php';
+	require_once MDS_CM_PATH . 'includes/legacy-class-aliases.php';
+	add_action( 'mds_rm_loaded', array( \MDS\Commerce\Plugin::class, 'init' ) );
 } else {
 	add_action(
 		'admin_notices',
@@ -40,7 +58,7 @@ if ( file_exists( $mds_wc_autoloader ) ) {
 
 			printf(
 				'<div class="notice notice-error"><p>%s</p></div>',
-				esc_html__( 'MDS WooCommerce Integration requires Composer dependencies. Run composer install in the plugin directory.', 'mds-woocommerce' )
+				esc_html__( 'MDS Commerce requires Composer dependencies. Run composer install in the plugin directory.', 'mds-commerce' )
 			);
 		}
 	);

@@ -5,15 +5,15 @@
  *
  * Run with PHP: php tests/store-registry.php
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  */
 
 declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ . '/' );
-define( 'MDS_WC_PATH', dirname( __DIR__ ) . '/' );
-define( 'MDS_WC_URL', 'http://example.test/wp-content/plugins/mds-woocommerce/' );
-define( 'MDS_WC_VERSION', '1.1.0' );
+define( 'MDS_CM_PATH', dirname( __DIR__ ) . '/' );
+define( 'MDS_CM_URL', 'http://example.test/wp-content/plugins/mds-woocommerce/' );
+define( 'MDS_CM_VERSION', '1.1.0' );
 
 $GLOBALS['mds_test_multisite']        = true;
 $GLOBALS['mds_test_current_blog']     = 1;
@@ -160,9 +160,9 @@ function __( string $text, string $domain = 'default' ): string {
 
 require dirname( __DIR__ ) . '/vendor/autoload.php';
 
-use MDS\WooCommerce\Integration\ReleaseMeta;
-use MDS\WooCommerce\Plugin;
-use MDS\WooCommerce\Support\StoreRegistry;
+use MDS\Commerce\Integration\ReleaseMeta;
+use MDS\Commerce\Plugin;
+use MDS\Commerce\Support\StoreRegistry;
 
 function assert_same( mixed $expected, mixed $actual, string $label ): void {
 	if ( $expected !== $actual ) {

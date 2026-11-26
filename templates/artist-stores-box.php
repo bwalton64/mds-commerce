@@ -2,7 +2,7 @@
 /**
  * Artist CPT WooCommerce Target Stores meta box template.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.1.0
  */
 
@@ -12,31 +12,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$mds_wc_artist_id     = isset( $args['artist_id'] ) ? absint( $args['artist_id'] ) : 0;
-$mds_wc_stores        = isset( $args['stores'] ) && is_array( $args['stores'] ) ? $args['stores'] : array();
-$mds_wc_assigned      = isset( $args['assigned'] ) && is_array( $args['assigned'] ) ? $args['assigned'] : array();
-$mds_wc_release_count = isset( $args['release_count'] ) ? absint( $args['release_count'] ) : 0;
-$mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
+$mds_wc_artist_id        = isset( $args['artist_id'] ) ? absint( $args['artist_id'] ) : 0;
+$mds_wc_stores           = isset( $args['stores'] ) && is_array( $args['stores'] ) ? $args['stores'] : array();
+$mds_wc_assigned         = isset( $args['assigned'] ) && is_array( $args['assigned'] ) ? $args['assigned'] : array();
+$mds_wc_release_count    = isset( $args['release_count'] ) ? absint( $args['release_count'] ) : 0;
+$mds_wc_is_auto_draft    = ! empty( $args['is_auto_draft'] );
+$mds_cm_variant_strategy = isset( $args['variant_strategy'] ) && is_string( $args['variant_strategy'] )
+	? $args['variant_strategy']
+	: 'ask_on_seed';
 ?>
 <div class="mds-wc-artist-stores" data-artist-id="<?php echo esc_attr( (string) $mds_wc_artist_id ); ?>">
 	<?php wp_nonce_field( 'mds_wc_save_artist_stores', 'mds_wc_artist_stores_nonce' ); ?>
 	<input type="hidden" name="mds_wc_artist_stores_present" value="1" />
 
 	<p class="description">
-		<?php esc_html_e( 'Select the WooCommerce store(s) where this Artist and their Releases should synchronize and allow product linking.', 'mds-woocommerce' ); ?>
+		<?php esc_html_e( 'Select the WooCommerce store(s) where this Artist and their Releases should synchronize and allow product linking.', 'mds-commerce' ); ?>
 	</p>
 
 	<div class="mds-wc-artist-stores__notice" role="status" aria-live="polite"></div>
 
 	<fieldset class="mds-wc-artist-stores__fieldset">
 		<legend class="screen-reader-text">
-			<?php esc_html_e( 'Target WooCommerce Stores', 'mds-woocommerce' ); ?>
+			<?php esc_html_e( 'Target WooCommerce Stores', 'mds-commerce' ); ?>
 		</legend>
 
 		<div class="mds-wc-artist-stores__list">
 			<?php if ( empty( $mds_wc_stores ) ) : ?>
 				<p class="mds-wc-artist-stores__empty">
-					<?php esc_html_e( 'No active WooCommerce stores were detected on this network. Activate WooCommerce on a site and refresh the list.', 'mds-woocommerce' ); ?>
+					<?php esc_html_e( 'No active WooCommerce stores were detected on this network. Activate WooCommerce on a site and refresh the list.', 'mds-commerce' ); ?>
 				</p>
 			<?php else : ?>
 				<?php foreach ( $mds_wc_stores as $mds_wc_store ) : ?>
@@ -55,6 +58,9 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 						/>
 						<span class="mds-wc-artist-stores__label">
 							<strong><?php echo esc_html( (string) ( $mds_wc_store['site_name'] ?? '' ) ); ?></strong>
+							<?php if ( ! empty( $mds_wc_store['supports_external_variations'] ) ) : ?>
+								<span class="mds-cm-cap-badge"><?php esc_html_e( 'External Variations Ready', 'mds-commerce' ); ?></span>
+							<?php endif; ?>
 							<?php if ( ! empty( $mds_wc_store['site_url'] ) ) : ?>
 								<span class="mds-wc-artist-stores__url"><?php echo esc_html( (string) $mds_wc_store['site_url'] ); ?></span>
 							<?php endif; ?>
@@ -65,9 +71,26 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 		</div>
 	</fieldset>
 
+	<p class="mds-cm-variant-strategy-row">
+		<label for="mds_cm_variant_strategy">
+			<strong><?php esc_html_e( 'Default Multi-Format Product Strategy:', 'mds-commerce' ); ?></strong>
+		</label>
+		<select id="mds_cm_variant_strategy" name="mds_cm_variant_strategy">
+			<option value="ask_on_seed" <?php selected( $mds_cm_variant_strategy, 'ask_on_seed' ); ?>>
+				<?php esc_html_e( 'Ask when creating product (Recommended)', 'mds-commerce' ); ?>
+			</option>
+			<option value="variable_product" <?php selected( $mds_cm_variant_strategy, 'variable_product' ); ?>>
+				<?php esc_html_e( 'Single Variable Product with Format Variations (supports WPC External Variations)', 'mds-commerce' ); ?>
+			</option>
+			<option value="separate_products" <?php selected( $mds_cm_variant_strategy, 'separate_products' ); ?>>
+				<?php esc_html_e( 'Separate Product per Media Format', 'mds-commerce' ); ?>
+			</option>
+		</select>
+	</p>
+
 	<div class="mds-wc-artist-stores__actions">
 		<button type="button" class="button button-secondary mds-wc-refresh-stores-btn">
-			<?php esc_html_e( 'Refresh Store List', 'mds-woocommerce' ); ?>
+			<?php esc_html_e( 'Refresh Store List', 'mds-commerce' ); ?>
 		</button>
 
 		<?php if ( ! $mds_wc_is_auto_draft && $mds_wc_release_count > 0 ) : ?>
@@ -84,7 +107,7 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 							'Sync %d Release to Selected Stores',
 							'Sync %d Releases to Selected Stores',
 							$mds_wc_release_count,
-							'mds-woocommerce'
+							'mds-commerce'
 						),
 						$mds_wc_release_count
 					)
@@ -95,6 +118,6 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 	</div>
 
 	<p class="description mds-wc-artist-stores__dirty-hint" hidden>
-		<?php esc_html_e( 'Save or Update this Artist first before syncing Releases to newly selected stores.', 'mds-woocommerce' ); ?>
+		<?php esc_html_e( 'Save or Update this Artist first before syncing Releases to newly selected stores.', 'mds-commerce' ); ?>
 	</p>
 </div>

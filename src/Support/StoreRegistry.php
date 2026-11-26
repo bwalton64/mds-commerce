@@ -2,15 +2,15 @@
 /**
  * Cached WooCommerce store discovery and per-Artist store assignment registry.
  *
- * @package MDS\WooCommerce
+ * @package MDS\Commerce
  * @since   1.1.0
  */
 
 declare(strict_types=1);
 
-namespace MDS\WooCommerce\Support;
+namespace MDS\Commerce\Support;
 
-use MDS\WooCommerce\Plugin;
+use MDS\Commerce\Plugin;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -176,7 +176,7 @@ final class StoreRegistry {
 					'site_name' => '' !== $blog_name
 						? $blog_name
 						/* translators: %d: WordPress site ID. */
-						: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $blog_id ),
+						: sprintf( __( 'Store #%d', 'mds-commerce' ), $blog_id ),
 					'site_url'  => (string) home_url(),
 				);
 			}
@@ -259,7 +259,7 @@ final class StoreRegistry {
 					'site_name' => '' !== $site_name
 						? $site_name
 						/* translators: %d: Multisite blog ID of the WooCommerce store. */
-						: sprintf( __( 'Store #%d', 'mds-woocommerce' ), $blog_id ),
+						: sprintf( __( 'Store #%d', 'mds-commerce' ), $blog_id ),
 					'site_url'  => $site_url,
 				);
 			}
