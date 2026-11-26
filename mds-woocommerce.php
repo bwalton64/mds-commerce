@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MDS WooCommerce Integration
  * Description: Extends MDS Release Manager with Network WooCommerce syncing.
- * Version: 2.0.0
+ * Version: 2.0.3
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MDS_WC_VERSION', '2.0.0' );
+define( 'MDS_WC_VERSION', '2.0.3' );
 define( 'MDS_WC_FILE', __FILE__ );
 define( 'MDS_WC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MDS_WC_URL', plugin_dir_url( __FILE__ ) );

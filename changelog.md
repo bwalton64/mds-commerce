@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-11-25
+
+### Fixed
+- Fixed Linux case-sensitivity 404 errors in `src/Admin/Assets.php` and `package.json` (`src/admin/...` → `src/Admin/...`) that prevented `product-linker.js`, `artist-stores.js`, `site-settings.js`, and `admin.css` from loading on case-sensitive Linux servers.
+
 ### Added
 - Wired native WordPress `Update URI` GitHub Releases updates (`bwalton64/mds-woocommerce`) via `MDS\ReleaseManager\Api\ExtensionApi::register_github_updater()` with `MDS_WC_GITHUB_TOKEN` (or shared `MDS_RM_GITHUB_TOKEN`) support for private repositories.
 

@@ -4,7 +4,7 @@ Tags: woocommerce, multisite, music, releases, sync
 Requires at least: 7.0
 Tested up to: 7.x
 Requires PHP: 8.0
-Stable tag: 2.0.0
+Stable tag: 2.0.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -46,6 +46,10 @@ Injected Single Product Page blocks continue working immediately because explici
 Yes. Place custom template overrides inside your theme at `mds-woocommerce/<template-name>.php`.
 
 == Changelog ==
+
+= 2.0.3 =
+* Fixed Linux case-sensitivity 404 errors in `Assets::enqueue()` and `package.json` (`src/admin/...` → `src/Admin/...`) that prevented `product-linker.js`, `artist-stores.js`, `site-settings.js`, and `admin.css` from loading on case-sensitive Linux hosts.
+* Wired native WordPress `Update URI` GitHub Releases updates (`bwalton64/mds-woocommerce`) via `ExtensionApi::register_github_updater()`.
 
 = 2.0.0 =
 * Renamed plugin slug and text domain to `mds-woocommerce` with full Composer PSR-4 architecture (`MDS\WooCommerce\`), `uninstall.php`, and `wpml-config.xml`.

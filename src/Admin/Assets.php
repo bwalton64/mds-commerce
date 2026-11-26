@@ -118,7 +118,7 @@ final class Assets {
 		$handle = 'mds_wc_artist_stores';
 		$asset  = self::resolve_asset(
 			'artist-stores',
-			'src/admin/artist-stores.js',
+			'src/Admin/artist-stores.js',
 			array( 'wp-a11y' ),
 			'js'
 		);
@@ -174,7 +174,7 @@ final class Assets {
 		$handle = 'mds_wc_site_settings';
 		$asset  = self::resolve_asset(
 			'site-settings',
-			'src/admin/site-settings.js',
+			'src/Admin/site-settings.js',
 			array( 'wp-a11y' ),
 			'js'
 		);
@@ -240,7 +240,7 @@ final class Assets {
 		$handle = 'mds_wc_product_linker';
 		$asset  = self::resolve_asset(
 			'product-linker',
-			'src/admin/product-linker.js',
+			'src/Admin/product-linker.js',
 			array( 'wp-a11y' ),
 			'js'
 		);
@@ -348,7 +348,7 @@ final class Assets {
 	private static function enqueue_admin_styles(): void {
 		$asset = self::resolve_asset(
 			'admin',
-			'src/admin/admin.css',
+			'src/Admin/admin.css',
 			array(),
 			'css'
 		);
