@@ -593,7 +593,10 @@ final class SiteSettings {
 	}
 
 	/**
-	 * Register the WooCommerce Integration tab in Releases -> Settings.
+	 * Register the unified Commerce tab in Releases -> Settings.
+	 *
+	 * Consolidates Hub Store Connections, Store Chooser Defaults, and the migrated
+	 * WooCommerce Single Product Page Injection designer under one tab.
 	 *
 	 * @since 1.0.1
 	 *
@@ -601,12 +604,20 @@ final class SiteSettings {
 	 * @return array<string, array<string, mixed>> Updated settings tabs.
 	 */
 	public static function register_tab( array $tabs ): array {
-		if ( ! Plugin::is_active() || ! Plugin::is_woocommerce_active_on_current_site() ) {
+		if ( ! Plugin::is_active() ) {
 			return $tabs;
 		}
 
-		$tabs['woocommerce'] = array(
-			'label'  => __( 'WooCommerce Integration', 'mds-commerce' ),
+		$is_hub = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class )
+			|| \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
+		$has_wc = Plugin::is_woocommerce_active_on_current_site();
+
+		if ( ! $is_hub && ! $has_wc ) {
+			return $tabs;
+		}
+
+		$tabs['commerce'] = array(
+			'label'  => __( 'Commerce', 'mds-commerce' ),
 			'render' => array( self::class, 'render_tab' ),
 		);
 
@@ -614,7 +625,7 @@ final class SiteSettings {
 	}
 
 	/**
-	 * Render the designer-oriented WooCommerce Integration settings tab inside Releases -> Settings.
+	 * Render the unified Commerce settings tab inside Releases -> Settings.
 	 *
 	 * @since 1.0.1
 	 *
@@ -622,9 +633,346 @@ final class SiteSettings {
 	 */
 	public static function render_tab(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to manage WooCommerce integration settings.', 'mds-commerce' ) );
+			wp_die( esc_html__( 'You are not allowed to manage MDS Commerce settings.', 'mds-commerce' ) );
 		}
 
+		$is_hub = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class )
+			|| \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
+		$has_wc = Plugin::is_woocommerce_active_on_current_site();
+
+		$default_subtab = $is_hub ? 'connections' : 'wc-injection';
+		?>
+		<div class="mds-cm-settings-shell">
+			<div class="mds-cm-subtabs" role="tablist" aria-label="<?php esc_attr_e( 'Commerce settings sections', 'mds-commerce' ); ?>">
+				<?php if ( $is_hub ) : ?>
+					<button
+						type="button"
+						role="tab"
+						class="mds-cm-subtab-btn <?php echo 'connections' === $default_subtab ? 'is-active' : ''; ?>"
+						data-subtab="connections"
+						aria-selected="<?php echo 'connections' === $default_subtab ? 'true' : 'false'; ?>"
+					>
+						<?php esc_html_e( 'Store Connections', 'mds-commerce' ); ?>
+					</button>
+					<button
+						type="button"
+						role="tab"
+						class="mds-cm-subtab-btn"
+						data-subtab="chooser"
+						aria-selected="false"
+					>
+						<?php esc_html_e( 'Store Chooser Defaults', 'mds-commerce' ); ?>
+					</button>
+				<?php endif; ?>
+
+				<?php if ( $has_wc ) : ?>
+					<button
+						type="button"
+						role="tab"
+						class="mds-cm-subtab-btn <?php echo 'wc-injection' === $default_subtab ? 'is-active' : ''; ?>"
+						data-subtab="wc-injection"
+						aria-selected="<?php echo 'wc-injection' === $default_subtab ? 'true' : 'false'; ?>"
+					>
+						<?php esc_html_e( 'WooCommerce Product Injection', 'mds-commerce' ); ?>
+					</button>
+				<?php endif; ?>
+			</div>
+
+			<?php if ( $is_hub ) : ?>
+				<div class="mds-cm-subtab-panel" data-subtab-panel="connections">
+					<?php self::render_store_connections_panel(); ?>
+				</div>
+
+				<div class="mds-cm-subtab-panel" data-subtab-panel="chooser" hidden>
+					<?php self::render_chooser_defaults_panel(); ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $has_wc ) : ?>
+				<div class="mds-cm-subtab-panel" data-subtab-panel="wc-injection" <?php echo 'wc-injection' === $default_subtab ? '' : 'hidden'; ?>>
+					<?php self::render_wc_injection_panel(); ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Hub Store Connections manager and Connection Wizard modal.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @return void
+	 */
+	private static function render_store_connections_panel(): void {
+		$local_stores = \MDS\Commerce\Support\StoreRegistry::get_available_stores();
+		$remote       = \MDS\Commerce\Registry\ConnectionRepository::get_all_safe();
+		$providers    = \MDS\Commerce\Registry\ConnectionRepository::get_supported_remote_providers();
+		?>
+		<div class="mds-panel">
+			<div class="mds-wc-designer-header">
+				<div>
+					<h2><?php esc_html_e( 'Connected Commerce Stores', 'mds-commerce' ); ?></h2>
+					<p class="description">
+						<?php esc_html_e( 'Manage local Multisite WooCommerce stores and external storefronts (Shopify, Remote WooCommerce, Wix, Big Cartel, Squarespace, Bandcamp, elasticStage). Credentials are encrypted at rest and support wp-config.php constant overrides.', 'mds-commerce' ); ?>
+					</p>
+				</div>
+				<div>
+					<button type="button" id="mds-cm-add-store-btn" class="button button-primary">
+						<?php esc_html_e( '+ Add Store Connection', 'mds-commerce' ); ?>
+					</button>
+				</div>
+			</div>
+
+			<div id="mds-cm-stores-notice" role="status" aria-live="polite"></div>
+
+			<h3><?php esc_html_e( 'Local WooCommerce Stores (Auto-Detected)', 'mds-commerce' ); ?></h3>
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Store', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Store Key', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Capabilities', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'mds-commerce' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php if ( empty( $local_stores ) ) : ?>
+						<tr>
+							<td colspan="4"><?php esc_html_e( 'No active local WooCommerce stores detected.', 'mds-commerce' ); ?></td>
+						</tr>
+					<?php else : ?>
+						<?php foreach ( $local_stores as $blog_id => $meta ) : ?>
+							<?php
+							$blog_id     = (int) $blog_id;
+							$store_key   = 'wc_local:' . $blog_id;
+							$has_ext_var = \MDS\Commerce\Providers\WooCommerceLocal\ExternalVariationsBridge::is_active_on_blog( $blog_id );
+							?>
+							<tr>
+								<td>
+									<strong><?php echo esc_html( (string) ( $meta['site_name'] ?? '' ) ); ?></strong><br />
+									<span class="description"><?php echo esc_html( (string) ( $meta['site_url'] ?? '' ) ); ?></span>
+								</td>
+								<td><code><?php echo esc_html( $store_key ); ?></code></td>
+								<td>
+									<span class="mds-wc-badge mds-wc-badge--linked"><?php esc_html_e( 'WooCommerce Local', 'mds-commerce' ); ?></span>
+									<?php if ( $has_ext_var ) : ?>
+										<span class="mds-cm-cap-badge"><?php esc_html_e( 'External Variations Ready', 'mds-commerce' ); ?></span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<button type="button" class="button button-secondary mds-cm-test-store-btn" data-store-key="<?php echo esc_attr( $store_key ); ?>">
+										<?php esc_html_e( 'Test Connection', 'mds-commerce' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
+
+			<h3 style="margin-top:1.5rem;"><?php esc_html_e( 'Remote & External Storefronts', 'mds-commerce' ); ?></h3>
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Store', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Provider', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Sync Mode', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Credentials', 'mds-commerce' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'mds-commerce' ); ?></th>
+					</tr>
+				</thead>
+				<tbody id="mds-cm-remote-stores-tbody">
+					<?php if ( empty( $remote ) ) : ?>
+						<tr>
+							<td colspan="5"><?php esc_html_e( 'No remote storefronts configured yet. Click "+ Add Store Connection" to connect Shopify, Remote WooCommerce, Wix, Big Cartel, or an external POD storefront.', 'mds-commerce' ); ?></td>
+						</tr>
+					<?php else : ?>
+						<?php foreach ( $remote as $conn ) : ?>
+							<tr>
+								<td>
+									<strong><?php echo esc_html( (string) $conn['name'] ); ?></strong><br />
+									<span class="description"><?php echo esc_html( (string) $conn['url'] ); ?></span>
+								</td>
+								<td><code><?php echo esc_html( (string) $conn['provider'] ); ?></code></td>
+								<td><?php echo esc_html( ucfirst( (string) $conn['sync_mode'] ) ); ?></td>
+								<td>
+									<?php
+									if ( 'wp_config' === $conn['secret_source'] ) {
+										esc_html_e( 'wp-config.php constant', 'mds-commerce' );
+									} elseif ( 'vault' === $conn['secret_source'] ) {
+										esc_html_e( 'Encrypted Vault', 'mds-commerce' );
+									} else {
+										esc_html_e( 'None / Public URL', 'mds-commerce' );
+									}
+									?>
+								</td>
+								<td>
+									<button type="button" class="button button-secondary mds-cm-test-store-btn" data-store-key="<?php echo esc_attr( (string) $conn['store_key'] ); ?>">
+										<?php esc_html_e( 'Test', 'mds-commerce' ); ?>
+									</button>
+									<button type="button" class="button button-secondary mds-cm-edit-store-btn" data-store-json="<?php echo esc_attr( (string) wp_json_encode( $conn ) ); ?>">
+										<?php esc_html_e( 'Edit', 'mds-commerce' ); ?>
+									</button>
+									<button type="button" class="button button-link-delete mds-cm-delete-store-btn" data-store-key="<?php echo esc_attr( (string) $conn['store_key'] ); ?>">
+										<?php esc_html_e( 'Delete', 'mds-commerce' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</div>
+
+		<dialog id="mds-cm-store-modal" class="mds-wc-modal" aria-labelledby="mds-cm-store-modal-title">
+			<form id="mds-cm-store-form" class="mds-wc-modal__dialog">
+				<header class="mds-wc-modal__header">
+					<h2 id="mds-cm-store-modal-title" class="mds-wc-modal__title"><?php esc_html_e( 'Add Store Connection', 'mds-commerce' ); ?></h2>
+					<button type="button" class="mds-wc-modal__close" data-action="close-store-modal" aria-label="<?php esc_attr_e( 'Close dialog', 'mds-commerce' ); ?>">
+						<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>
+					</button>
+				</header>
+				<div class="mds-wc-modal__body">
+					<input type="hidden" name="store_id" value="" />
+					<p>
+						<label for="mds-cm-provider"><strong><?php esc_html_e( 'Platform / Provider', 'mds-commerce' ); ?></strong></label><br />
+						<select id="mds-cm-provider" name="provider" class="widefat">
+							<?php foreach ( $providers as $slug => $info ) : ?>
+								<option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $info['label'] ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+					<p>
+						<label for="mds-cm-store-name"><strong><?php esc_html_e( 'Store Display Name', 'mds-commerce' ); ?></strong></label><br />
+						<input type="text" id="mds-cm-store-name" name="name" class="widefat" required placeholder="<?php esc_attr_e( 'e.g. Official Shopify Merch Store', 'mds-commerce' ); ?>" />
+					</p>
+					<p>
+						<label for="mds-cm-store-url"><strong><?php esc_html_e( 'Storefront URL', 'mds-commerce' ); ?></strong></label><br />
+						<input type="url" id="mds-cm-store-url" name="url" class="widefat" placeholder="https://store.example.com" />
+					</p>
+					<p>
+						<label for="mds-cm-api-key"><strong><?php esc_html_e( 'API Key / Client ID / Site ID (optional)', 'mds-commerce' ); ?></strong></label><br />
+						<input type="text" id="mds-cm-api-key" name="api_key" class="widefat" autocomplete="off" />
+					</p>
+					<p>
+						<label for="mds-cm-api-secret"><strong><?php esc_html_e( 'Access Token / Consumer Secret (encrypted at rest)', 'mds-commerce' ); ?></strong></label><br />
+						<input type="password" id="mds-cm-api-secret" name="api_secret" class="widefat" autocomplete="new-password" placeholder="<?php esc_attr_e( 'Leave blank to keep existing secret', 'mds-commerce' ); ?>" />
+					</p>
+					<p>
+						<label for="mds-cm-secret-const"><strong><?php esc_html_e( 'wp-config.php Constant Override (optional)', 'mds-commerce' ); ?></strong></label><br />
+						<input type="text" id="mds-cm-secret-const" name="secret_constant" class="widefat" placeholder="MDS_CM_SHOPIFY_TOKEN_MAIN" />
+					</p>
+					<p>
+						<label for="mds-cm-sync-mode"><strong><?php esc_html_e( 'Sync Mode', 'mds-commerce' ); ?></strong></label><br />
+						<select id="mds-cm-sync-mode" name="sync_mode" class="widefat">
+							<option value="manual"><?php esc_html_e( 'Manual Only (On-Demand)', 'mds-commerce' ); ?></option>
+							<option value="polling"><?php esc_html_e( 'Scheduled Polling (Action Scheduler / WP-Cron)', 'mds-commerce' ); ?></option>
+							<option value="webhook"><?php esc_html_e( 'Real-Time Webhooks', 'mds-commerce' ); ?></option>
+						</select>
+					</p>
+					<input type="hidden" name="poll_interval" value="hourly" />
+					<details>
+						<summary><strong><?php esc_html_e( 'Store-Level Promo & Coupon Defaults (Store Chooser)', 'mds-commerce' ); ?></strong></summary>
+						<p>
+							<label><?php esc_html_e( 'Default Promo Badge', 'mds-commerce' ); ?><br />
+							<input type="text" name="promo_badge" class="widefat" placeholder="<?php esc_attr_e( 'e.g. Free Shipping', 'mds-commerce' ); ?>" /></label>
+						</p>
+						<p>
+							<label><?php esc_html_e( 'Default Coupon Code', 'mds-commerce' ); ?><br />
+							<input type="text" name="coupon_code" class="widefat" placeholder="VINYL15" /></label>
+						</p>
+						<p>
+							<label><?php esc_html_e( 'Promo Expiration (UTC YYYY-MM-DD HH:MM:SS)', 'mds-commerce' ); ?><br />
+							<input type="text" name="promo_expires_gmt" class="widefat" placeholder="2026-12-31 23:59:59" /></label>
+						</p>
+						<p>
+							<label><?php esc_html_e( 'Priority Weight (higher floats up)', 'mds-commerce' ); ?><br />
+							<input type="number" name="priority_weight" class="small-text" value="0" /></label>
+						</p>
+					</details>
+				</div>
+				<footer class="mds-wc-modal__footer">
+					<button type="button" class="button button-secondary" data-action="close-store-modal"><?php esc_html_e( 'Cancel', 'mds-commerce' ); ?></button>
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Store Connection', 'mds-commerce' ); ?></button>
+				</footer>
+			</form>
+		</dialog>
+		<?php
+	}
+
+	/**
+	 * Render the Store Chooser Global Defaults panel and WP 7.0 Core AI/MCP pointers.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @return void
+	 */
+	private static function render_chooser_defaults_panel(): void {
+		$defaults = \MDS\Commerce\Registry\ConnectionRepository::get_chooser_defaults();
+		?>
+		<div class="mds-panel">
+			<h2><?php esc_html_e( 'Store Chooser Global Defaults', 'mds-commerce' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Default presentation settings for the mds-commerce/store-chooser Gutenberg block and [mds-store-chooser] shortcode.', 'mds-commerce' ); ?>
+			</p>
+			<div id="mds-cm-chooser-notice" role="status" aria-live="polite"></div>
+
+			<form id="mds-cm-chooser-defaults-form">
+				<table class="form-table">
+					<tr>
+						<th scope="row"><label for="mds-cm-def-heading"><?php esc_html_e( 'Default Heading', 'mds-commerce' ); ?></label></th>
+						<td><input type="text" id="mds-cm-def-heading" name="heading" class="regular-text" value="<?php echo esc_attr( $defaults['heading'] ); ?>" placeholder="<?php esc_attr_e( 'Where to Buy', 'mds-commerce' ); ?>" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="mds-cm-def-groupby"><?php esc_html_e( 'Default Grouping', 'mds-commerce' ); ?></label></th>
+						<td>
+							<select id="mds-cm-def-groupby" name="group_by">
+								<option value="format" <?php selected( $defaults['group_by'], 'format' ); ?>><?php esc_html_e( 'Media Format (Vinyl, CD, Digital)', 'mds-commerce' ); ?></option>
+								<option value="store" <?php selected( $defaults['group_by'], 'store' ); ?>><?php esc_html_e( 'Storefront', 'mds-commerce' ); ?></option>
+								<option value="none" <?php selected( $defaults['group_by'], 'none' ); ?>><?php esc_html_e( 'Flat List', 'mds-commerce' ); ?></option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="mds-cm-def-layout"><?php esc_html_e( 'Default Layout', 'mds-commerce' ); ?></label></th>
+						<td>
+							<select id="mds-cm-def-layout" name="layout">
+								<option value="cards" <?php selected( $defaults['layout'], 'cards' ); ?>><?php esc_html_e( 'Cards', 'mds-commerce' ); ?></option>
+								<option value="list" <?php selected( $defaults['layout'], 'list' ); ?>><?php esc_html_e( 'Compact List', 'mds-commerce' ); ?></option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Coupon & Promo Priority', 'mds-commerce' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="prioritize_promos" value="1" <?php checked( $defaults['prioritize_promos'] ); ?> />
+								<?php esc_html_e( 'Automatically float stores with active coupon codes or special offers to the top of each format group', 'mds-commerce' ); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+				<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Save Store Chooser Defaults', 'mds-commerce' ); ?></button></p>
+			</form>
+
+			<hr />
+			<h3><?php esc_html_e( 'WordPress 7.0 AI & MCP Discoverability', 'mds-commerce' ); ?></h3>
+			<p class="description">
+				<?php esc_html_e( 'MDS Commerce registers read-only Abilities (mds-commerce/list-stores, mds-commerce/get-release-links, mds-commerce/get-pod-provisioning-pack) with MCP discovery enabled. Manage AI provider keys in WordPress Settings → Connectors and audit registered abilities in Tools → Abilities Explorer.', 'mds-commerce' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the migrated WooCommerce Single Product Page Injection designer panel.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @return void
+	 */
+	private static function render_wc_injection_panel(): void {
 		$available_blocks = self::get_available_blocks();
 		$grouped_blocks   = array();
 		foreach ( $available_blocks as $block ) {

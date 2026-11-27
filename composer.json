@@ -3,7 +3,7 @@
   "description": "Multi-platform commerce companion plugin for MDS Release Manager.",
   "version": "3.0.0",
   "type": "wordpress-plugin",
-  "license": "GPL-2.0-or-later",
+  "license": "GPL-3.0-or-later",
   "require": {
     "php": ">=8.0"
   },

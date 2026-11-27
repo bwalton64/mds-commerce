@@ -76,6 +76,11 @@ mds-commerce/
 | `GET /taxonomies` | `edit_posts` + store access | Fetch `product_cat` and `product_tag` terms for the Create Product modal |
 | `POST /sync-product` | `edit_posts` + store/legacy access | Selectively push approved drift fields (`upc`, `sku`, `thumbnail`, `title`) |
 | `GET /pod-provisioning-pack` | `edit_post` | Return verified Release metadata, tracklist, and artwork specs for POD portals |
+| `GET /stores` / `POST /stores` / `DELETE /stores/{store_key}` | `edit_posts` / `manage_options` | List local & remote stores; create/update/delete encrypted remote store connections |
+| `POST /stores/{store_key}/test` | `manage_options` | Test local/remote store connectivity and return latency & capabilities |
+| `POST /chooser-defaults` | `manage_options` | Save site-wide Store Chooser defaults |
+| `POST /links/promo` | `edit_post` | Save per-release Store Chooser promo badge, coupon code, expiration & priority weight |
+| `GET /variations` / `POST /variations` | `edit_post` + store access | Read/update WooCommerce Variable product format variations & `wpc-external-variations` (`wpcev_url` / `wpcev_text`) from the Hub |
 | `POST /settings` | `manage_options` | Save per-site Single Product Page Injection settings |
 | `POST /stores/refresh` | Hub + `edit_posts` | Invalidate and rebuild the network store cache |
 | `POST /artists/{id}/sync-releases` | Hub + `edit_post` | Cursor-paged (10/batch) Artist + Release broadcast to assigned stores |

@@ -5,8 +5,8 @@ Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.0
 Stable tag: 3.0.0
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+License: GPLv3 or later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Multi-platform commerce companion for MDS Release Manager with WooCommerce Multisite syncing, WPC External Variations POD support, and Store Chooser blocks.
 

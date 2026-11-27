@@ -39,10 +39,15 @@ final class Assets {
 			return;
 		}
 
-		$is_wc_settings  = 'release_page_mds-release-settings' === $screen->id && Plugin::is_woocommerce_active_on_current_site();
-		$is_hub          = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
-		$is_release_edit = 'post' === $screen->base && 'release' === $screen->post_type && $is_hub;
-		$is_artist_edit  = 'post' === $screen->base && 'artist' === $screen->post_type && is_multisite() && $is_hub;
+		$is_settings_page = str_ends_with( (string) $screen->id, '_page_mds-release-settings' );
+		$is_wc_settings   = $is_settings_page && Plugin::is_woocommerce_active_on_current_site();
+		$is_hub           = ! class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) || \MDS\ReleaseManager\Api\ExtensionApi::is_hub();
+		$is_release_edit  = 'post' === $screen->base && 'release' === $screen->post_type && $is_hub;
+		$is_artist_edit   = 'post' === $screen->base && 'artist' === $screen->post_type && is_multisite() && $is_hub;
+
+		if ( $is_settings_page && ( $is_hub || $is_wc_settings ) ) {
+			self::enqueue_commerce_settings_script();
+		}
 
 		if ( $is_wc_settings ) {
 			self::enqueue_site_settings_script();
@@ -56,9 +61,49 @@ final class Assets {
 			self::enqueue_artist_stores_script();
 		}
 
-		if ( $is_release_edit || $is_artist_edit || $is_wc_settings ) {
+		if ( $is_release_edit || $is_artist_edit || $is_settings_page ) {
 			self::enqueue_admin_styles();
 		}
+	}
+
+	/**
+	 * Enqueue the unified Commerce Settings script (Store Connections & Store Chooser Defaults).
+	 *
+	 * @since 3.0.0
+	 *
+	 * @return void
+	 */
+	private static function enqueue_commerce_settings_script(): void {
+		$handle = 'mds_cm_settings';
+		$asset  = self::resolve_asset(
+			'commerce-settings',
+			'src/Admin/commerce-settings.js',
+			array( 'wp-a11y' ),
+			'js'
+		);
+
+		wp_register_script( $handle, $asset['url'], $asset['dependencies'], $asset['version'], true );
+		wp_enqueue_script( $handle );
+		wp_set_script_translations( $handle, 'mds-commerce' );
+
+		$config = array(
+			'storesUrl'          => esc_url_raw( rest_url( 'mds-commerce/v1/stores' ) ),
+			'chooserDefaultsUrl' => esc_url_raw( rest_url( 'mds-commerce/v1/chooser-defaults' ) ),
+			'nonce'              => wp_create_nonce( 'wp_rest' ),
+			'messages'           => array(
+				'addStore'      => __( 'Add Store Connection', 'mds-commerce' ),
+				'editStore'     => __( 'Edit Store Connection', 'mds-commerce' ),
+				'saved'         => __( 'Store connection saved.', 'mds-commerce' ),
+				'testing'       => __( 'Testing…', 'mds-commerce' ),
+				'confirmDelete' => __( 'Delete this store connection? Linked products on the remote store will not be deleted.', 'mds-commerce' ),
+			),
+		);
+
+		wp_add_inline_script(
+			$handle,
+			'window.mdsCmSettings = ' . wp_json_encode( $config ) . ';',
+			'before'
+		);
 	}
 
 	/**
@@ -279,11 +324,15 @@ final class Assets {
 		}
 
 		$config = array(
-			'searchUrl'      => esc_url_raw( rest_url( 'mds-wc/v1/search' ) ),
-			'linkUrl'        => esc_url_raw( rest_url( 'mds-wc/v1/link' ) ),
-			'generateUrl'    => esc_url_raw( rest_url( 'mds-wc/v1/generate' ) ),
-			'taxonomiesUrl'  => esc_url_raw( rest_url( 'mds-wc/v1/taxonomies' ) ),
-			'syncProductUrl' => esc_url_raw( rest_url( 'mds-wc/v1/sync-product' ) ),
+			'searchUrl'      => esc_url_raw( rest_url( 'mds-commerce/v1/search' ) ),
+			'linkUrl'        => esc_url_raw( rest_url( 'mds-commerce/v1/link' ) ),
+			'generateUrl'    => esc_url_raw( rest_url( 'mds-commerce/v1/generate' ) ),
+			'taxonomiesUrl'  => esc_url_raw( rest_url( 'mds-commerce/v1/taxonomies' ) ),
+			'syncProductUrl' => esc_url_raw( rest_url( 'mds-commerce/v1/sync-product' ) ),
+			'podPackUrl'     => esc_url_raw( rest_url( 'mds-commerce/v1/pod-provisioning-pack' ) ),
+			'promoUrl'       => esc_url_raw( rest_url( 'mds-commerce/v1/links/promo' ) ),
+			'variationsUrl'  => esc_url_raw( rest_url( 'mds-commerce/v1/variations' ) ),
+			'podPresets'     => \MDS\Commerce\Providers\WooCommerceLocal\ExternalVariationsBridge::get_pod_presets(),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'release'        => $release_seed,
 			'messages'       => array(
@@ -335,6 +384,20 @@ final class Assets {
 			$handle,
 			'window.mdsWcProductLinker = ' . wp_json_encode( $config ) . ';',
 			'before'
+		);
+
+		$tools_asset = self::resolve_asset(
+			'hub-commerce-tools',
+			'src/Admin/hub-commerce-tools.js',
+			array( $handle, 'wp-a11y' ),
+			'js'
+		);
+		wp_enqueue_script(
+			'mds_cm_hub_tools',
+			$tools_asset['url'],
+			$tools_asset['dependencies'],
+			$tools_asset['version'],
+			true
 		);
 	}
 

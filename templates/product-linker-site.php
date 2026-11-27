@@ -193,6 +193,14 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 			</a>
 
 			<?php if ( ! $mds_wc_is_unassigned ) : ?>
+				<button
+					type="button"
+					class="button button-secondary mds-cm-edit-variations-btn"
+					data-product-id="<?php echo esc_attr( $mds_wc_is_linked ? (string) $mds_wc_product['id'] : '0' ); ?>"
+				>
+					<?php esc_html_e( 'Edit Variations / POD Links', 'mds-commerce' ); ?>
+				</button>
+
 				<button type="button" class="button button-link mds-wc-action-change">
 					<?php esc_html_e( 'Change Link', 'mds-commerce' ); ?>
 				</button>
@@ -202,6 +210,45 @@ $mds_wc_listbox_id    = 'mds-wc-results-' . $mds_wc_store_id;
 				<?php esc_html_e( 'Unlink', 'mds-commerce' ); ?>
 			</button>
 		</div>
+
+		<?php
+		$mds_cm_all_links  = get_post_meta( absint( $args['post_id'] ), \MDS\Commerce\Config::RELEASE_LINKS_META_KEY, true );
+		$mds_cm_link_key   = 'wc_local:' . $mds_wc_store_id;
+		$mds_cm_link_entry = is_array( $mds_cm_all_links ) && isset( $mds_cm_all_links[ $mds_cm_link_key ] ) && is_array( $mds_cm_all_links[ $mds_cm_link_key ] )
+			? $mds_cm_all_links[ $mds_cm_link_key ]
+			: array();
+		?>
+		<details class="mds-cm-promo-drawer">
+			<summary><?php esc_html_e( 'Store Chooser & Promo Settings (Coupons / Priority)', 'mds-commerce' ); ?></summary>
+			<div class="mds-cm-promo-notice" role="status" aria-live="polite"></div>
+			<div class="mds-cm-promo-grid">
+				<label>
+					<span><?php esc_html_e( 'Format Label Override', 'mds-commerce' ); ?></span>
+					<input type="text" class="widefat" data-field="format" value="<?php echo esc_attr( (string) ( $mds_cm_link_entry['format'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'e.g. Vinyl LP', 'mds-commerce' ); ?>" />
+				</label>
+				<label>
+					<span><?php esc_html_e( 'Promo Badge', 'mds-commerce' ); ?></span>
+					<input type="text" class="widefat" data-field="promo_badge" value="<?php echo esc_attr( (string) ( $mds_cm_link_entry['promo_badge'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'e.g. 15% Off / Free Shipping', 'mds-commerce' ); ?>" />
+				</label>
+				<label>
+					<span><?php esc_html_e( 'Coupon Code', 'mds-commerce' ); ?></span>
+					<input type="text" class="widefat" data-field="coupon_code" value="<?php echo esc_attr( (string) ( $mds_cm_link_entry['coupon_code'] ?? '' ) ); ?>" placeholder="VINYL15" />
+				</label>
+				<label>
+					<span><?php esc_html_e( 'Promo Expires (UTC)', 'mds-commerce' ); ?></span>
+					<input type="text" class="widefat" data-field="promo_expires_gmt" value="<?php echo esc_attr( (string) ( $mds_cm_link_entry['promo_expires_gmt'] ?? '' ) ); ?>" placeholder="2026-12-31 23:59:59" />
+				</label>
+				<label>
+					<span><?php esc_html_e( 'Priority Weight', 'mds-commerce' ); ?></span>
+					<input type="number" class="small-text" data-field="priority_weight" value="<?php echo esc_attr( (string) (int) ( $mds_cm_link_entry['priority_weight'] ?? 0 ) ); ?>" />
+				</label>
+			</div>
+			<p>
+				<button type="button" class="button button-secondary mds-cm-save-promo-btn">
+					<?php esc_html_e( 'Save Promo Settings', 'mds-commerce' ); ?>
+				</button>
+			</p>
+		</details>
 	</div>
 
 	<?php if ( ! $mds_wc_is_unassigned ) : ?>

@@ -61,6 +61,7 @@ final class RestApi {
 		foreach ( $namespaces as $rest_namespace ) {
 			self::register_product_routes( $rest_namespace );
 			self::register_settings_and_artist_routes( $rest_namespace );
+			CommerceAdminRest::register_routes( $rest_namespace );
 		}
 	}
 

@@ -32,6 +32,15 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 		);
 		?>
 	<?php else : ?>
+		<div class="mds-cm-release-toolbar">
+			<button
+				type="button"
+				class="button button-secondary mds-cm-open-pod-modal"
+				data-release-id="<?php echo esc_attr( $args['post_id'] ); ?>"
+			>
+				<?php esc_html_e( 'POD Prep Pack (elasticStage / TrepStar / Bandcamp)', 'mds-commerce' ); ?>
+			</button>
+		</div>
 		<div class="mds-wc-store-cards">
 			<?php foreach ( $args['sites'] as $mds_wc_site ) : ?>
 				<?php
@@ -47,9 +56,23 @@ $mds_wc_is_auto_draft = ! empty( $args['is_auto_draft'] );
 			<?php endforeach; ?>
 		</div>
 		<?php
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The modal template escapes its dynamic values.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The modal templates escape their dynamic values.
 		echo mds_wc_render_template(
 			'product-linker-create-modal.php',
+			array(
+				'post_id' => $args['post_id'],
+			)
+		);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The modal templates escape their dynamic values.
+		echo mds_wc_render_template(
+			'pod-provisioning-modal.php',
+			array(
+				'post_id' => $args['post_id'],
+			)
+		);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The modal templates escape their dynamic values.
+		echo mds_wc_render_template(
+			'variations-editor-modal.php',
 			array(
 				'post_id' => $args['post_id'],
 			)

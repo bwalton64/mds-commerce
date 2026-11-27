@@ -47,9 +47,15 @@ final class CredentialVault {
 	 */
 	public static function resolve_secret( string $constant_name, string $stored_value = '' ): string {
 		$clean_const = preg_replace( '/[^A-Z0-9_]/', '', strtoupper( $constant_name ) ) ?? '';
-		if ( '' !== $clean_const && defined( $clean_const ) ) {
-			$value = constant( $clean_const );
-			return is_scalar( $value ) ? trim( (string) $value ) : '';
+		if ( '' !== $clean_const ) {
+			$env = getenv( $clean_const );
+			if ( is_string( $env ) && '' !== trim( $env ) ) {
+				return trim( $env );
+			}
+			if ( defined( $clean_const ) ) {
+				$value = constant( $clean_const );
+				return is_scalar( $value ) ? trim( (string) $value ) : '';
+			}
 		}
 
 		if ( '' === $stored_value ) {
@@ -60,7 +66,8 @@ final class CredentialVault {
 	}
 
 	/**
-	 * Encrypt a plaintext secret using libsodium or OpenSSL AES-256-GCM.
+	 * Encrypt a plaintext secret using Core's Hub SecretVault (XChaCha20-Poly1305 AEAD + AAD)
+	 * when available, falling back to local libsodium or OpenSSL AES-256-GCM.
 	 *
 	 * @since 3.0.0
 	 *
@@ -70,6 +77,10 @@ final class CredentialVault {
 	public static function encrypt( string $plaintext ): string {
 		if ( '' === $plaintext ) {
 			return '';
+		}
+
+		if ( class_exists( \MDS\ReleaseManager\Core\Security\SecretVault::class ) ) {
+			return \MDS\ReleaseManager\Core\Security\SecretVault::encrypt_envelope( $plaintext, 'mds_commerce|store|hub|1' );
 		}
 
 		$key = self::derive_key();
@@ -106,6 +117,11 @@ final class CredentialVault {
 	public static function decrypt( string $ciphertext ): string {
 		if ( '' === $ciphertext ) {
 			return '';
+		}
+
+		if ( str_starts_with( $ciphertext, 'mds_v2:' ) && class_exists( \MDS\ReleaseManager\Core\Security\SecretVault::class ) ) {
+			$opened = \MDS\ReleaseManager\Core\Security\SecretVault::decrypt_envelope( $ciphertext, 'mds_commerce|store|hub|1' );
+			return null !== $opened ? $opened['plaintext'] : '';
 		}
 
 		if ( str_starts_with( $ciphertext, self::SODIUM_PREFIX ) ) {

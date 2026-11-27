@@ -1,6 +1,7 @@
 <?php
 /**
  * Plugin Name: MDS Commerce
+ * Plugin URI: https://mustydungeon.com
  * Description: Multi-platform commerce companion for MDS Release Manager with WooCommerce Multisite syncing, external POD variations, and Store Chooser blocks.
  * Version: 3.0.0
  * Requires at least: 7.0
@@ -8,10 +9,15 @@
  * Requires Plugins: mds-release-manager
  * Update URI: https://github.com/bwalton64/mds-commerce
  * Author: Musty Dungeon Studios
+ * Author URI: https://mustydungeon.com
+ * License: GPL-3.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain: mds-commerce
  *
- * @package MDS\Commerce
- * @since   1.0.1
+ * @package   MDS\Commerce
+ * @copyright 2026 Musty Dungeon Studios (Walton International Business Group LLC)
+ * @license   GPL-3.0-or-later
+ * @since     1.0.1
  */
 
 declare(strict_types=1);

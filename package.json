@@ -4,8 +4,8 @@
   "description": "Multi-platform commerce companion plugin for MDS Release Manager.",
   "license": "GPL-2.0-or-later",
   "scripts": {
-    "build": "wp-scripts build src/Admin/artist-stores.js src/Admin/site-settings.js src/Admin/product-linker.js src/Admin/admin.css blocks/store-chooser/index.js blocks/store-chooser/view.js blocks/store-chooser/style.css",
-    "start": "wp-scripts start src/Admin/artist-stores.js src/Admin/site-settings.js src/Admin/product-linker.js src/Admin/admin.css blocks/store-chooser/index.js blocks/store-chooser/view.js blocks/store-chooser/style.css",
+    "build": "wp-scripts build src/Admin/artist-stores.js src/Admin/site-settings.js src/Admin/product-linker.js src/Admin/commerce-settings.js src/Admin/hub-commerce-tools.js src/Admin/admin.css blocks/store-chooser/index.js blocks/store-chooser/view.js blocks/store-chooser/style.css",
+    "start": "wp-scripts start src/Admin/artist-stores.js src/Admin/site-settings.js src/Admin/product-linker.js src/Admin/commerce-settings.js src/Admin/hub-commerce-tools.js src/Admin/admin.css blocks/store-chooser/index.js blocks/store-chooser/view.js blocks/store-chooser/style.css",
     "lint:js": "wp-scripts lint-js src blocks",
     "lint:css": "wp-scripts lint-style src blocks",
     "format": "wp-scripts format src blocks"
