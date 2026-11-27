@@ -1,6 +1,6 @@
 {
   "name": "mds-commerce",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Multi-platform commerce companion plugin for MDS Release Manager.",
   "license": "GPL-2.0-or-later",
   "scripts": {

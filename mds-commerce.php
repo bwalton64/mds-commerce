@@ -3,7 +3,7 @@
  * Plugin Name: MDS Commerce
  * Plugin URI: https://mustydungeon.com
  * Description: Multi-platform commerce companion for MDS Release Manager with WooCommerce Multisite syncing, external POD variations, and Store Chooser blocks.
- * Version: 3.0.0
+ * Version: 3.0.1
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
@@ -24,7 +24,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MDS_CM_VERSION', '3.0.0' );
+define( 'MDS_CM_VERSION', '3.0.1' );
 define( 'MDS_CM_FILE', __FILE__ );
 define( 'MDS_CM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MDS_CM_URL', plugin_dir_url( __FILE__ ) );
