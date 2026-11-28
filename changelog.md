@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- **MDS API Gateway & Commercial Entitlements:** Added `GatewayClient` (`MDS_CM_GATEWAY_URL`), `EntitlementManager` (`pro` vs. `label` tiers, 7-day offline grace window, zero live calls on frontend render), and `GatewayUpdater` (`Update URI: https://api.mustydungeon.com/v1/updates/mds-commerce`).
+- **Gateway-Backed Remote Store Providers & Signed Webhook Relay:** Added `GatewayRemoteProvider` (Shopify Admin GraphQL + Storefront Web Components embed, Remote WooCommerce REST v3, Wix Catalog V3, Big Cartel, Squarespace) and HMAC-SHA256 signed `POST /mds-commerce/v1/webhooks/gateway` receiver.
+- **License & API Gateway Admin Panel + Catalog Audit Workbench:** Added the **License & API Gateway** sub-tab under `Releases → Settings → Commerce` (`POST /license/activate`, `/deactivate`, `/refresh`), the Hub `Releases → Commerce Audit` workbench (`AuditWorkbench`), `.github/workflows/release-zip.yml`, and `tests/gateway-entitlements.php`.
+
+### Changed
+- Aligned paid add-on + MDS API Gateway descriptions across `mds-commerce.php`, `composer.json`, `package.json`, `README.MD`, `readme.txt`, `LICENSE`, and `COMMERCIAL-LICENSE.md`, and updated `uninstall.php` to clean Gateway/license options and transients.
+
 ## [3.0.1] - 2026-11-27
 
 ### Changed

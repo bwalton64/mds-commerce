@@ -1,6 +1,6 @@
 {
   "name": "mds/commerce",
-  "description": "Multi-platform commerce companion plugin for MDS Release Manager.",
+  "description": "Paid multi-platform commerce add-on for MDS Release Manager (WooCommerce, Shopify, Wix, POD & Store Chooser) powered by the MDS API Gateway.",
   "version": "3.0.1",
   "type": "wordpress-plugin",
   "license": "GPL-3.0-or-later",

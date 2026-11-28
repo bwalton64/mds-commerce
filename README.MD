@@ -1,23 +1,17 @@
 # MDS Commerce
 
-Multi-platform commerce companion plugin for **MDS Release Manager** (`MDS_RM_API_VERSION 2.0.0+`).
+**Paid multi-platform commerce add-on for MDS Release Manager (`MDS_RM_API_VERSION 2.0.0+`), powered by the MDS API Gateway.**
 
-Evolved in place from `mds-woocommerce`, **MDS Commerce** (`3.0.0`) provides a pluggable `CommerceProviderInterface` architecture starting with **WooCommerce Local/Multisite + WPC External Variations**, a visitor-facing **Store Chooser** Gutenberg block and shortcode with coupon/promo prioritization, **Physical Media POD Provisioning Packs** (elasticStage, TrepStar, Kunaki, Diggers Factory, Qrates), and **WordPress 7.x Abilities API / MCP** integration.
+Evolved in place from `mds-woocommerce`, **MDS Commerce** provides a pluggable `CommerceProviderInterface` architecture covering local/Multisite **WooCommerce + WPC External Variations**, Gateway-backed remote storefronts (**Shopify**, **WooCommerce Remote**, **Wix**, **Big Cartel**, **Squarespace**), HMAC-signed **Webhook Relay**, a visitor-facing **Store Chooser** Gutenberg block and shortcode with coupon/promo prioritization, **Physical Media POD Provisioning Packs** (elasticStage, TrepStar, Kunaki, Diggers Factory, Qrates, Bandcamp), a **Catalog Audit Workbench**, and **WordPress 7.x Abilities / MCP** endpoints.
 
 ## Key Features
 
-- **Provider-Agnostic Commerce Architecture:** Namespaced `StoreKey` identifiers (`wc_local:3`, `shopify:*`, `wix:*`), `ProviderManager` (`mds_cm_register_providers`), `CredentialVault` (libsodium / OpenSSL AES-256-GCM + `wp-config.php` constant overrides), and `RateLimiter`.
-- **Zero-Loss Upgrade from `mds-woocommerce`:** `UpgradeRoutine` automatically migrates `_mds_wc_target_stores`, `_mds_linked_products`, and `mds_wc_product_injection` while preserving `_mds_local_product_id` on Spoke shadow releases and retaining `mds-wc/v1` / `mds-woo/v1` REST aliases and `MDS\WooCommerce\*` class aliases.
-- **WPC External Variations Bridge:** Auto-detects `wpc-external-variations` (`wpcev_url` / `wpcev_text`) per store and advertises an *External Variations Ready* capability badge alongside per-Artist Variant Mapping Strategy controls (`ask_on_seed`, `variable_product`, `separate_products`).
-- **Store Chooser Block (`mds-commerce/store-chooser`) & Shortcode (`[mds-store-chooser]`):** Format-grouped visitor picker with automatic coupon/special-offer prioritization, 1-click accessible coupon copying, and theme-adaptive `--mds-theme-*` styles.
-- **WordPress 7.x Abilities / MCP:** Exposes read-only `mds-commerce/list-stores`, `mds-commerce/get-release-links`, and `mds-commerce/get-pod-provisioning-pack` (`meta.mcp.public = true`).
+- **MDS API Gateway & Commercial Entitlements (`Pro` / `Label`):** Protects remote OAuth brokers, platform connectors, Webhook Relay, and private authenticated updates (`https://api.mustydungeon.com/v1/updates/mds-commerce`) behind the MDS API Gateway with a 7-day offline grace window and 0ms local frontend rendering.
+- **Unified Hub Admin Tools (`Releases → Settings → Commerce` & `Releases → Commerce Audit`):** Manage Store Connections, Store Chooser Defaults, License & API Gateway, migrated WooCommerce Product Injection, per-release Promo/Coupon settings, Hub-side WPC External Variations (`wpcev_url` / `wpcev_text`), and POD Prep Packs.
+- **Zero-Loss Upgrade from `mds-woocommerce`:** `UpgradeRoutine` automatically migrates legacy options and post meta while preserving `_mds_local_product_id` unchanged on Spoke shadow releases.
 
-## Development Commands
+## Copyright & Licensing
 
-```bash
-composer dump-autoload -o
-composer phpcs
-php tests/store-registry.php
-php tests/commerce-core.php
-npm run build
-```
+Copyright (c) 2026 Musty Dungeon Studios, a wholly owned subsidiary of Walton International Business Group LLC. All rights reserved.
+
+WordPress PHP integration code is licensed under **GPL-3.0-or-later** (`LICENSE`). The MDS API Gateway, proprietary connectors, brand assets (`assets/icon.svg`), and commercial distribution/update entitlements are governed by `COMMERCIAL-LICENSE.md`.

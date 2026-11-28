@@ -1,0 +1,42 @@
+name: Build Private Production ZIP
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install production Composer dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Build production JS & CSS assets
+        run: npm ci && npm run build
+
+      - name: Package mds-commerce.zip
+        run: |
+          mkdir -p dist/mds-commerce
+          rsync -av --exclude='.git*' --exclude='.agents' --exclude='node_modules' --exclude='tests' --exclude='dist' --exclude='phpcs.xml.dist' --exclude='package*.json' ./ dist/mds-commerce/
+          cd dist && zip -r "mds-commerce-${GITHUB_REF_NAME}.zip" mds-commerce
+
+      - name: Upload private build artifact for MDS API Gateway
+        uses: actions/upload-artifact@v4
+        with:
+          name: mds-commerce-${{ github.ref_name }}
+          path: dist/mds-commerce-*.zip

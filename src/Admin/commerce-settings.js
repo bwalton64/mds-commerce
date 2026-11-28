@@ -258,4 +258,55 @@
 			}
 		} );
 	}
+
+	// 4. License & MDS API Gateway actions.
+	const licenseForm = document.getElementById( 'mds-cm-license-form' );
+	const licenseNotice = document.getElementById( 'mds-cm-license-notice' );
+	const licenseRefresh = document.getElementById( 'mds-cm-license-refresh' );
+	const licenseDeactivate = document.getElementById( 'mds-cm-license-deactivate' );
+
+	if ( licenseForm && config.licenseBaseUrl ) {
+		licenseForm.addEventListener( 'submit', async ( e ) => {
+			e.preventDefault();
+			const key = licenseForm.elements.license_key.value.trim();
+			try {
+				const res = await restRequest( config.licenseBaseUrl + '/activate', {
+					method: 'POST',
+					body: { license_key: key },
+				} );
+				showNotice( licenseNotice, res.message, 'success' );
+				window.location.reload();
+			} catch ( err ) {
+				showNotice( licenseNotice, err.message, 'error' );
+			}
+		} );
+	}
+
+	if ( licenseRefresh && config.licenseBaseUrl ) {
+		licenseRefresh.addEventListener( 'click', async () => {
+			try {
+				const res = await restRequest( config.licenseBaseUrl + '/refresh', {
+					method: 'POST',
+				} );
+				showNotice( licenseNotice, res.message, 'success' );
+				window.location.reload();
+			} catch ( err ) {
+				showNotice( licenseNotice, err.message, 'error' );
+			}
+		} );
+	}
+
+	if ( licenseDeactivate && config.licenseBaseUrl ) {
+		licenseDeactivate.addEventListener( 'click', async () => {
+			try {
+				const res = await restRequest( config.licenseBaseUrl + '/deactivate', {
+					method: 'POST',
+				} );
+				showNotice( licenseNotice, res.message, 'success' );
+				window.location.reload();
+			} catch ( err ) {
+				showNotice( licenseNotice, err.message, 'error' );
+			}
+		} );
+	}
 } )();

@@ -663,6 +663,15 @@ final class SiteSettings {
 					>
 						<?php esc_html_e( 'Store Chooser Defaults', 'mds-commerce' ); ?>
 					</button>
+					<button
+						type="button"
+						role="tab"
+						class="mds-cm-subtab-btn"
+						data-subtab="license"
+						aria-selected="false"
+					>
+						<?php esc_html_e( 'License & API Gateway', 'mds-commerce' ); ?>
+					</button>
 				<?php endif; ?>
 
 				<?php if ( $has_wc ) : ?>
@@ -685,6 +694,10 @@ final class SiteSettings {
 
 				<div class="mds-cm-subtab-panel" data-subtab-panel="chooser" hidden>
 					<?php self::render_chooser_defaults_panel(); ?>
+				</div>
+
+				<div class="mds-cm-subtab-panel" data-subtab-panel="license" hidden>
+					<?php self::render_license_gateway_panel(); ?>
 				</div>
 			<?php endif; ?>
 
@@ -961,6 +974,87 @@ final class SiteSettings {
 			<p class="description">
 				<?php esc_html_e( 'MDS Commerce registers read-only Abilities (mds-commerce/list-stores, mds-commerce/get-release-links, mds-commerce/get-pod-provisioning-pack) with MCP discovery enabled. Manage AI provider keys in WordPress Settings → Connectors and audit registered abilities in Tools → Abilities Explorer.', 'mds-commerce' ); ?>
 			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the License & MDS API Gateway management panel.
+	 *
+	 * @since 3.0.1
+	 *
+	 * @return void
+	 */
+	private static function render_license_gateway_panel(): void {
+		$status      = \MDS\Commerce\Gateway\EntitlementManager::get_status();
+		$is_active   = \MDS\Commerce\Gateway\EntitlementManager::is_active();
+		$tier        = \MDS\Commerce\Gateway\EntitlementManager::get_tier();
+		$max_stores  = \MDS\Commerce\Gateway\EntitlementManager::max_remote_stores();
+		$gateway_url = \MDS\Commerce\Gateway\GatewayClient::get_base_url();
+		$webhook_url = rest_url( 'mds-commerce/v1/webhooks/gateway' );
+		?>
+		<div class="mds-panel">
+			<h2><?php esc_html_e( 'Commercial License & MDS API Gateway', 'mds-commerce' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Connect your commercial license key to enable remote storefront connectors (Shopify, Wix, Big Cartel, Squarespace, Remote WooCommerce), real-time Webhook Relay, and authenticated automatic updates via the MDS API Gateway.', 'mds-commerce' ); ?>
+			</p>
+			<div id="mds-cm-license-notice" role="status" aria-live="polite"></div>
+
+			<form id="mds-cm-license-form">
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Status & Tier', 'mds-commerce' ); ?></th>
+						<td>
+							<span class="mds-wc-badge <?php echo $is_active ? 'mds-wc-badge--linked' : 'mds-wc-badge--unlinked'; ?>">
+								<?php echo $is_active ? esc_html( strtoupper( $tier ) . ' — Active' ) : esc_html__( 'Inactive', 'mds-commerce' ); ?>
+							</span>
+							<?php if ( $is_active ) : ?>
+								<span class="description" style="margin-left:8px;">
+									<?php
+									echo esc_html(
+										-1 === $max_stores
+											? __( 'Unlimited remote stores · Webhook Relay enabled', 'mds-commerce' )
+											/* translators: %d: Maximum remote stores allowed on Pro tier. */
+											: sprintf( __( 'Up to %d remote stores', 'mds-commerce' ), $max_stores )
+									);
+									?>
+								</span>
+							<?php endif; ?>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="mds-cm-license-key"><?php esc_html_e( 'License Key', 'mds-commerce' ); ?></label></th>
+						<td>
+							<input
+								type="password"
+								id="mds-cm-license-key"
+								name="license_key"
+								class="regular-text"
+								autocomplete="off"
+								placeholder="<?php echo ! empty( $status['masked_key'] ) ? esc_attr( (string) $status['masked_key'] ) : 'MDS-XXXX-XXXX-XXXX'; ?>"
+							/>
+							<p class="description">
+								<?php esc_html_e( 'Stored encrypted at rest. You can also define MDS_CM_LICENSE_KEY in wp-config.php.', 'mds-commerce' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'API Gateway Endpoint', 'mds-commerce' ); ?></th>
+						<td><code><?php echo esc_html( $gateway_url ); ?></code></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Signed Webhook Receiver', 'mds-commerce' ); ?></th>
+						<td><code><?php echo esc_html( $webhook_url ); ?></code></td>
+					</tr>
+				</table>
+				<p>
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Activate License', 'mds-commerce' ); ?></button>
+					<button type="button" id="mds-cm-license-refresh" class="button button-secondary"><?php esc_html_e( 'Refresh Entitlements', 'mds-commerce' ); ?></button>
+					<?php if ( $is_active ) : ?>
+						<button type="button" id="mds-cm-license-deactivate" class="button button-link-delete"><?php esc_html_e( 'Deactivate', 'mds-commerce' ); ?></button>
+					<?php endif; ?>
+				</p>
+			</form>
 		</div>
 		<?php
 	}

@@ -11,10 +11,12 @@ declare(strict_types=1);
 namespace MDS\Commerce;
 
 use MDS\Commerce\Admin\Assets;
+use MDS\Commerce\Admin\AuditWorkbench;
 use MDS\Commerce\Admin\MetaBoxes;
 use MDS\Commerce\Admin\SiteSettings;
 use MDS\Commerce\Api\Abilities;
 use MDS\Commerce\Blocks\StoreChooser;
+use MDS\Commerce\Gateway\GatewayUpdater;
 use MDS\Commerce\Integration\ReleaseMeta;
 use MDS\Commerce\Rest\RestApi;
 use MDS\Commerce\Support\StoreRegistry;
@@ -49,25 +51,9 @@ final class Plugin {
 
 		StoreRegistry::register_hooks();
 		SiteSettings::register();
+		AuditWorkbench::register();
 		Abilities::register();
-
-		if ( class_exists( \MDS\ReleaseManager\Api\ExtensionApi::class ) && defined( 'MDS_CM_BASENAME' ) ) {
-			\MDS\ReleaseManager\Api\ExtensionApi::register_github_updater(
-				array(
-					'basename'       => MDS_CM_BASENAME,
-					'slug'           => 'mds-commerce',
-					'repo'           => 'bwalton64/mds-commerce',
-					'version'        => MDS_CM_VERSION,
-					'name'           => 'MDS Commerce',
-					'author'         => 'Musty Dungeon Studios',
-					'homepage'       => 'https://mustydungeon.com',
-					'token_constant' => 'MDS_CM_GITHUB_TOKEN',
-					'requires'       => '7.0',
-					'tested'         => '7.0',
-					'requires_php'   => '8.0',
-				)
-			);
-		}
+		GatewayUpdater::register();
 	}
 
 	/**

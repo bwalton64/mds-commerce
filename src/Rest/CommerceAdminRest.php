@@ -126,6 +126,46 @@ final class CommerceAdminRest {
 				),
 			)
 		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/license/activate',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'activate_license' ),
+				'permission_callback' => $manage_options,
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/license/deactivate',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'deactivate_license' ),
+				'permission_callback' => $manage_options,
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/license/refresh',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'refresh_license' ),
+				'permission_callback' => $manage_options,
+			)
+		);
+
+		register_rest_route(
+			$rest_namespace,
+			'/webhooks/gateway',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'handle_gateway_webhook' ),
+				'permission_callback' => '__return_true',
+			)
+		);
 	}
 
 	/**
@@ -540,5 +580,145 @@ final class CommerceAdminRest {
 			),
 			200
 		);
+	}
+
+	/**
+	 * Activate a commercial license key against the MDS API Gateway.
+	 *
+	 * @since 3.0.1
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return WP_REST_Response|WP_Error Activation status or error.
+	 */
+	public static function activate_license( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$params = $request->get_json_params();
+		if ( ! is_array( $params ) ) {
+			$params = $request->get_params();
+		}
+
+		$key = isset( $params['license_key'] ) && is_scalar( $params['license_key'] )
+			? trim( (string) $params['license_key'] )
+			: '';
+
+		$result = \MDS\Commerce\Gateway\EntitlementManager::activate( $key );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new WP_REST_Response(
+			array(
+				'entitlements' => $result,
+				'message'      => __( 'MDS Commerce license activated.', 'mds-commerce' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Deactivate the active license key.
+	 *
+	 * @since 3.0.1
+	 *
+	 * @return WP_REST_Response Cleared entitlement state.
+	 */
+	public static function deactivate_license(): WP_REST_Response {
+		$result = \MDS\Commerce\Gateway\EntitlementManager::deactivate();
+		return new WP_REST_Response(
+			array(
+				'entitlements' => $result,
+				'message'      => __( 'MDS Commerce license deactivated.', 'mds-commerce' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Refresh commercial entitlements from the MDS API Gateway.
+	 *
+	 * @since 3.0.1
+	 *
+	 * @return WP_REST_Response|WP_Error Refreshed entitlements or error.
+	 */
+	public static function refresh_license(): WP_REST_Response|WP_Error {
+		$result = \MDS\Commerce\Gateway\EntitlementManager::refresh();
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new WP_REST_Response(
+			array(
+				'entitlements' => $result,
+				'message'      => __( 'Entitlements refreshed from the MDS API Gateway.', 'mds-commerce' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Receive HMAC-SHA256 signed real-time stock/price/URL updates relayed by the MDS API Gateway.
+	 *
+	 * @since 3.0.1
+	 *
+	 * @param WP_REST_Request $request Incoming webhook request.
+	 * @return WP_REST_Response|WP_Error Processing result or auth error.
+	 */
+	public static function handle_gateway_webhook( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$raw_body  = $request->get_body();
+		$signature = (string) $request->get_header( 'x-mds-signature' );
+
+		$entitlements = \MDS\Commerce\Gateway\EntitlementManager::get_status();
+		$secret       = \MDS\Commerce\Security\CredentialVault::resolve_secret(
+			'MDS_CM_WEBHOOK_SECRET',
+			(string) ( $entitlements['webhook_secret'] ?? '' )
+		);
+
+		if ( '' === $secret || '' === $signature ) {
+			return new WP_Error( 'mds_cm_webhook_unauthorized', __( 'Missing webhook signature or secret.', 'mds-commerce' ), array( 'status' => 401 ) );
+		}
+
+		$expected = hash_hmac( 'sha256', $raw_body, $secret );
+		if ( ! hash_equals( $expected, $signature ) ) {
+			return new WP_Error( 'mds_cm_webhook_invalid_sig', __( 'Invalid webhook signature.', 'mds-commerce' ), array( 'status' => 403 ) );
+		}
+
+		$payload = json_decode( $raw_body, true );
+		if ( ! is_array( $payload ) ) {
+			return new WP_Error( 'mds_cm_webhook_bad_json', __( 'Invalid JSON payload.', 'mds-commerce' ), array( 'status' => 400 ) );
+		}
+
+		$release_id = absint( $payload['release_id'] ?? 0 );
+		$store_key  = StoreKey::parse( (string) ( $payload['store_key'] ?? '' ) );
+
+		if ( $release_id <= 0 || ! $store_key instanceof StoreKey ) {
+			return new WP_Error( 'mds_cm_webhook_missing_ids', __( 'Webhook requires valid release_id and store_key.', 'mds-commerce' ), array( 'status' => 400 ) );
+		}
+
+		$links = get_post_meta( $release_id, Config::RELEASE_LINKS_META_KEY, true );
+		if ( ! is_array( $links ) ) {
+			$links = array();
+		}
+
+		$k     = $store_key->to_string();
+		$entry = isset( $links[ $k ] ) && is_array( $links[ $k ] )
+			? $links[ $k ]
+			: array(
+				'store_key' => $k,
+				'provider'  => $store_key->provider(),
+			);
+
+		foreach ( array( 'remote_id', 'price', 'stock_status', 'permalink', 'url', 'store_name', 'format' ) as $field ) {
+			if ( isset( $payload[ $field ] ) && is_scalar( $payload[ $field ] ) ) {
+				$entry[ $field ] = in_array( $field, array( 'permalink', 'url' ), true )
+					? esc_url_raw( (string) $payload[ $field ] )
+					: sanitize_text_field( (string) $payload[ $field ] );
+			}
+		}
+		$entry['last_synced_gmt'] = gmdate( 'Y-m-d H:i:s' );
+
+		$links[ $k ] = $entry;
+		update_post_meta( $release_id, Config::RELEASE_LINKS_META_KEY, $links );
+		Plugin::request_cache_purge( 'commerce_webhook' );
+
+		return new WP_REST_Response( array( 'received' => true ), 200 );
 	}
 }

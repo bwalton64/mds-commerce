@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace MDS\Commerce\Registry;
 
 use MDS\Commerce\Contracts\CommerceProviderInterface;
+use MDS\Commerce\Providers\Gateway\GatewayRemoteProvider;
 use MDS\Commerce\Providers\WooCommerceLocal\WooCommerceLocalProvider;
 
 defined( 'ABSPATH' ) || exit;
@@ -43,7 +44,12 @@ final class ProviderManager {
 		}
 
 		$defaults = array(
-			'wc_local' => new WooCommerceLocalProvider(),
+			'wc_local'    => new WooCommerceLocalProvider(),
+			'shopify'     => new GatewayRemoteProvider( 'shopify', __( 'Shopify (Admin GraphQL via Gateway)', 'mds-commerce' ) ),
+			'wc_remote'   => new GatewayRemoteProvider( 'wc_remote', __( 'WooCommerce Remote (REST v3 via Gateway)', 'mds-commerce' ) ),
+			'wix'         => new GatewayRemoteProvider( 'wix', __( 'Wix Stores (Catalog V3 via Gateway)', 'mds-commerce' ) ),
+			'bigcartel'   => new GatewayRemoteProvider( 'bigcartel', __( 'Big Cartel (JSON:API v1 via Gateway)', 'mds-commerce' ) ),
+			'squarespace' => new GatewayRemoteProvider( 'squarespace', __( 'Squarespace Commerce (via Gateway)', 'mds-commerce' ) ),
 		);
 
 		/**

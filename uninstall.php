@@ -20,6 +20,9 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 		'mds_cm_wc_product_injection',
 		'mds_cm_migrated_version',
 		'mds_cm_store_connections',
+		'mds_cm_chooser_defaults',
+		'mds_cm_license_key',
+		'mds_cm_entitlements',
 		'mds_wc_product_injection',
 		'mds_wc_artist_stores_migrated',
 	);
@@ -35,6 +38,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	$network_transients = array(
 		'mds_cm_network_stores',
 		'mds_cm_network_stores_lock',
+		'mds_cm_gateway_update_check',
 		'mds_wc_network_stores',
 		'mds_wc_network_stores_lock',
 	);
@@ -45,6 +49,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 	delete_site_option( 'mds_cm_network_stores_fallback' );
 	delete_site_option( 'mds_cm_store_connections' );
+	delete_site_option( 'mds_cm_license_key' );
+	delete_site_option( 'mds_cm_entitlements' );
 	delete_site_option( 'mds_wc_network_stores_fallback' );
 
 	if ( ! is_multisite() ) {

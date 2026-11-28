@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name: MDS Commerce
- * Plugin URI: https://mustydungeon.com
- * Description: Multi-platform commerce companion for MDS Release Manager with WooCommerce Multisite syncing, external POD variations, and Store Chooser blocks.
+ * Plugin URI: https://mustydungeon.com/mds-commerce
+ * Description: Paid multi-platform commerce add-on for MDS Release Manager (WooCommerce, Shopify, Wix, POD & Store Chooser) powered by the MDS API Gateway.
  * Version: 3.0.1
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Requires Plugins: mds-release-manager
- * Update URI: https://github.com/bwalton64/mds-commerce
+ * Update URI: https://api.mustydungeon.com
  * Author: Musty Dungeon Studios
  * Author URI: https://mustydungeon.com
  * License: GPL-3.0-or-later
@@ -53,7 +53,19 @@ if ( file_exists( $mds_cm_autoloader ) ) {
 	require_once $mds_cm_autoloader;
 	require_once MDS_CM_PATH . 'includes/helpers.php';
 	require_once MDS_CM_PATH . 'includes/legacy-class-aliases.php';
-	add_action( 'mds_rm_loaded', array( \MDS\Commerce\Plugin::class, 'init' ) );
+	add_action(
+		'mds_rm_loaded',
+		static function (): void {
+			$mds_cm_gw_sdk = dirname( untrailingslashit( MDS_CM_PATH ) ) . '/mds-cloud-gateway/sdk/GatewayClient.php';
+			if ( ! class_exists( \MDS\GatewayClient\GatewayClient::class ) && is_readable( $mds_cm_gw_sdk ) ) {
+				require_once $mds_cm_gw_sdk;
+			}
+			if ( class_exists( \MDS\GatewayClient\GatewayClient::class ) ) {
+				\MDS\GatewayClient\GatewayClient::boot_companion( 'mds-commerce', MDS_CM_BASENAME, MDS_CM_VERSION, MDS_CM_PATH );
+			}
+			\MDS\Commerce\Plugin::init();
+		}
+	);
 } else {
 	add_action(
 		'admin_notices',

@@ -89,6 +89,7 @@ final class Assets {
 		$config = array(
 			'storesUrl'          => esc_url_raw( rest_url( 'mds-commerce/v1/stores' ) ),
 			'chooserDefaultsUrl' => esc_url_raw( rest_url( 'mds-commerce/v1/chooser-defaults' ) ),
+			'licenseBaseUrl'     => esc_url_raw( rest_url( 'mds-commerce/v1/license' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'messages'           => array(
 				'addStore'      => __( 'Add Store Connection', 'mds-commerce' ),
